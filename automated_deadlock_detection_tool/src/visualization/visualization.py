@@ -177,7 +177,7 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
     print(f"RAG: {rag}")
     print(f"Resources Held: {resources_held}")
     print(f"Resources Wanted: {resources_wanted}")
-    print(f"Deadlock Cycle: {deadlock_cycle}")
+    print(f"Provided Deadlock Cycle: {deadlock_cycle}")
     print(f"Total Resources: {total_resources}")
 
     # Create RAG
@@ -195,8 +195,20 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         for neighbor in wfg[node]:
             G_wfg.add_edge(node, neighbor)
 
-    # Use provided deadlock cycle or detect all cycles
-    deadlock_cycles = [deadlock_cycle] if deadlock_cycle else detect_deadlock_cycles(rag)
+    # Combine provided deadlock cycle with detected cycles
+    detected_cycles = detect_deadlock_cycles(rag)
+    if deadlock_cycle:
+        # Ensure provided cycle is included, avoiding duplicates
+        provided_cycle = deadlock_cycle if deadlock_cycle[-1] == deadlock_cycle[0] else deadlock_cycle + [deadlock_cycle[0]]
+        provided_set = set(tuple(provided_cycle))
+        detected_sets = [set(tuple(cycle)) for cycle in detected_cycles]
+        if provided_set not in detected_sets:
+            detected_cycles.append(provided_cycle)
+        deadlock_cycles = detected_cycles
+    else:
+        deadlock_cycles = detected_cycles
+
+    print(f"Detected Deadlock Cycles: {deadlock_cycles}")
 
     # Convert RAG deadlock cycles to WFG cycles
     wfg_deadlock_cycles = []
@@ -291,15 +303,16 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         label_color = 'red' if (u, v) in deadlock_edges_rag else 'black'
         ax1.text(label_x, label_y, "R", fontsize=8, color=label_color, ha='left', va='center')
 
-    # Draw node labels with adjusted offset
+    # Draw node labels with adjusted offset (just outside symbols)
     label_pos_rag = pos_rag.copy()
     for node in label_pos_rag:
         x, y = label_pos_rag[node]
         if node.startswith("P"):
-            label_pos_rag[node] = (x - 0.12, y)
+            label_pos_rag[node] = (x - 0.15, y)  # Outside circle (radius ~0.1 + 0.05)
         else:
-            label_pos_rag[node] = (x + 0.12, y)
-    nx.draw_networkx_labels(G_rag, label_pos_rag, font_size=9, font_weight='bold', ax=ax1)
+            label_pos_rag[node] = (x + 0.15, y)  # Outside rectangle (half-width 0.07 + 0.08)
+    nx.draw_networkx_labels(G_rag, label_pos_rag, font_size=9, font_weight='bold', 
+                            horizontalalignment='right' if node.startswith("P") else 'left', ax=ax1)
 
     # Set axis limits to prevent truncation
     x_coords = [pos_rag[node][0] for node in pos_rag]
@@ -313,7 +326,7 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
     ax1.axis('off')
 
     # --- WFG (Right Subplot) ---
-    pos_wfg = nx.circular_layout(G_wfg, scale=1.5)
+    pos_wfg = nx.spring_layout(G_wfg, scale=1.5, k=0.5)
 
     # Draw nodes
     wfg_deadlock_nodes = set()
@@ -353,14 +366,15 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         label_color = 'red' if edge in deadlock_edges else 'black'
         ax2.text(label_x, label_y, "W", fontsize=8, color=label_color, ha='center', va='center')
 
-    # Draw node labels with adjusted offset
+    # Draw node labels with adjusted offset (just outside circle)
     label_pos_wfg = pos_wfg.copy()
     for node in label_pos_wfg:
         x, y = label_pos_wfg[node]
         angle = np.arctan2(y, x)
-        offset = 0.12
+        offset = 0.15  # Outside circle (radius ~0.1 + 0.05)
         label_pos_wfg[node] = (x + offset * np.cos(angle), y + offset * np.sin(angle))
-    nx.draw_networkx_labels(G_wfg, label_pos_wfg, font_size=9, font_weight='bold', ax=ax2)
+    nx.draw_networkx_labels(G_wfg, label_pos_wfg, font_size=9, font_weight='bold', 
+                            horizontalalignment='center', ax=ax2)
 
     # Set axis limits to prevent truncation
     x_coords = [pos_wfg[node][0] for node in pos_wfg]
@@ -481,21 +495,28 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
 if __name__ == "__main__":
     # Test case with multiple deadlock cycles
     sample_rag = {
-        "P1": ["R1"], "P2": ["R2"], "P3": ["R3"], "P4": ["R4"], "P5": ["R4"],
-        "R1": ["P2"], "R2": ["P1"], "R3": ["P4"], "R4": ["P3"], "R5": ["P5"]
+        'P1': ['R2'], 'P2': ['R1'], 'P3': ['R2'], 'P4': ['R5'], 'P5': ['R6'], 'P6': ['R4'],
+        'R1': ['P1'], 'R2': ['P2'], 'R3': ['P3'], 'R4': ['P4'], 'R5': ['P5'], 'R6': ['P6']
     }
-    sample_resources_held = {"P1": ["R2"], "P2": ["R1"], "P3": ["R4"], "P4": ["R3"], "P5": ["R5"]}
-    sample_resources_wanted = {"P1": ["R1"], "P2": ["R2"], "P3": ["R3"], "P4": ["R4"], "P5": ["R4"]}
+    sample_resources_held = {
+        'P1': ['R1'], 'P2': ['R2'], 'P3': ['R3'], 'P4': ['R4'], 'P5': ['R5'], 'P6': ['R6']
+    }
+    sample_resources_wanted = {
+        'P1': ['R2'], 'P2': ['R1'], 'P3': ['R2'], 'P4': ['R5'], 'P5': ['R6'], 'P6': ['R4']
+    }
+    sample_deadlock_cycle = ['R1', 'P2', 'R2', 'P1', 'R1']
     root = tk.Tk()
-    visualize_rag(sample_rag, sample_resources_held, sample_resources_wanted, total_resources=5, root=root)
+    visualize_rag(sample_rag, sample_resources_held, sample_resources_wanted, 
+                  deadlock_cycle=sample_deadlock_cycle, total_resources=6, root=root)
     root.mainloop()
 
     # Test case without deadlock cycles
     no_deadlock_rag = {
-        "P1": [], "P2": ["R2"], "R1": ["P1"], "R2": []
+        'P1': [], 'P2': ['R2'], 'R1': ['P1'], 'R2': []
     }
-    no_deadlock_resources_held = {"P1": ["R1"], "P2": []}
-    no_deadlock_resources_wanted = {"P1": [], "P2": ["R2"]}
+    no_deadlock_resources_held = {'P1': ['R1'], 'P2': []}
+    no_deadlock_resources_wanted = {'P1': [], 'P2': ['R2']}
     root = tk.Tk()
-    visualize_rag(no_deadlock_rag, no_deadlock_resources_held, no_deadlock_resources_wanted, total_resources=2, root=root)
+    visualize_rag(no_deadlock_rag, no_deadlock_resources_held, no_deadlock_resources_wanted, 
+                  total_resources=2, root=root)
     root.mainloop()
