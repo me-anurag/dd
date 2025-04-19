@@ -7,6 +7,8 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 import time
 import threading
+import os
+import pygame
 
 class CycleVisualization:
     """Handles the simulation and narrative visualization of the cycle detection algorithm."""
@@ -14,18 +16,31 @@ class CycleVisualization:
         self.gui = gui
         self.window = window
         self.mode = mode
+        self.sound_manager = gui.sound_manager  # Access SoundManager from GUI
         self.detector = DeadlockDetector(self.gui.resources_held, self.gui.resources_wanted, self.gui.total_resources)
         self.rag = self.detector.build_rag()
         self.steps = []
         self.current_step = 0
         self.cycle = None
         self.narrative = []
+        self.is_playing = False  # Track play/pause state
+        self.play_thread = None  # Store the play thread
+        self.window_valid = True  # Track window validity
+
+        # Bind window close event
+        self.window.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
         # Run DFS with step logging
         self._run_dfs_with_steps()
 
         # Initialize UI
         self._setup_ui()
+
+    def _on_window_close(self):
+        """Handle window close event."""
+        self.is_playing = False  # Stop auto-play
+        self.window_valid = False  # Mark window as invalid
+        self.window.destroy()  # Proceed with closing
 
     def _run_dfs_with_steps(self):
         """Modified DFS to log each step for visualization and narrative."""
@@ -161,6 +176,9 @@ class CycleVisualization:
             next_button = tk.Button(control_frame, text="Next ➡️", font=("Arial", 12),
                                     command=self.next_narrative, bg="#4CAF50", fg="white")
             next_button.pack(side=tk.LEFT, padx=5)
+            self.play_pause_button = tk.Button(control_frame, text="▶️ Play", font=("Arial", 12),
+                                               command=self.toggle_play_pause, bg="#2196F3", fg="white")
+            self.play_pause_button.pack(side=tk.LEFT, padx=5)
 
             self._show_narrative()
 
@@ -306,10 +324,34 @@ class CycleVisualization:
 
     def _show_narrative(self):
         """Displays the narrative text up to the current step."""
-        self.text_area.delete(1.0, tk.END)
-        for i, line in enumerate(self.narrative[:self.current_step + 1]):
-            self.text_area.insert(tk.END, f"{line}\n\n")
-        self.text_area.see(tk.END)
+        if not self.window_valid or not self.text_area.winfo_exists():
+            return  # Skip if window or widget is invalid
+        try:
+            self.text_area.delete(1.0, tk.END)
+            for i, line in enumerate(self.narrative[:self.current_step + 1]):
+                self.text_area.insert(tk.END, f"{line}\n\n")
+            self.text_area.see(tk.END)
+        except tk.TclError as e:
+            print(f"Tkinter error in _show_narrative: {e}")
+            self.is_playing = False
+            self.window_valid = False
+            return
+        if self.sound_manager.sound_enabled:
+            try:
+                # Resolve path to assets/ relative to src/visualization/
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                pop_sound_path = os.path.join(script_dir, "..", "..", "assets", "pop.wav")
+                pop_sound = pygame.mixer.Sound(pop_sound_path)
+                pop_sound.play()
+            except FileNotFoundError:
+                print(f"Error: 'assets/pop.wav' not found at {pop_sound_path}. Please ensure the file exists in the assets directory.")
+            except Exception as e:
+                print(f"Error playing pop sound: {e}")
+        if self.current_step == len(self.narrative) - 1:
+            if self.cycle:
+                self.sound_manager.play_deadlock_sound()
+            else:
+                self.sound_manager.play_safe_sound()
 
     def prev_narrative(self):
         """Shows the previous narrative step."""
@@ -319,6 +361,32 @@ class CycleVisualization:
 
     def next_narrative(self):
         """Shows the next narrative step."""
-        if self.current_step < len(self.narrative) - 1:
+        if self.current_step < len(self.narrative) - 1 and self.window_valid:
             self.current_step += 1
             self._show_narrative()
+
+    def toggle_play_pause(self):
+        """Toggles between play and pause for automatic narrative progression."""
+        if self.is_playing:
+            self.is_playing = False
+            if self.window_valid and self.play_pause_button.winfo_exists():
+                self.play_pause_button.config(text="▶️ Play")
+            self.play_thread = None  # Allow thread to terminate
+        else:
+            if not self.window_valid:
+                return
+            self.is_playing = True
+            if self.play_pause_button.winfo_exists():
+                self.play_pause_button.config(text="⏸️ Pause")
+            self.play_thread = threading.Thread(target=self._auto_play_narrative, daemon=True)
+            self.play_thread.start()
+
+    def _auto_play_narrative(self):
+        """Automatically advances the narrative with a 3-second gap."""
+        while self.is_playing and self.current_step < len(self.narrative) - 1 and self.window_valid:
+            self.window.after(0, self.next_narrative)
+            time.sleep(3)
+        if self.current_step >= len(self.narrative) - 1 or not self.window_valid:
+            self.is_playing = False
+            if self.window_valid and self.play_pause_button.winfo_exists():
+                self.window.after(0, lambda: self.play_pause_button.config(text="▶️ Play"))
