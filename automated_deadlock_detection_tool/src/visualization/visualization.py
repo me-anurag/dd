@@ -306,16 +306,16 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         label_color = 'red' if (u, v) in deadlock_edges_rag else 'black'
         ax1.text(label_x, label_y, "R", fontsize=8, color=label_color, ha='left', va='center')
 
-    # Draw node labels with adjusted offset (just outside symbols)
+    # Draw node labels with process labels inside circles and resource labels outside
     label_pos_rag = pos_rag.copy()
     for node in label_pos_rag:
         x, y = label_pos_rag[node]
         if node.startswith("P"):
-            label_pos_rag[node] = (x - 0.15, y)  # Outside circle (radius ~0.1 + 0.05)
+            label_pos_rag[node] = (x, y)  # Inside circle (center of node)
         else:
             label_pos_rag[node] = (x + 0.15, y)  # Outside rectangle (half-width 0.07 + 0.08)
-    nx.draw_networkx_labels(G_rag, label_pos_rag, font_size=9, font_weight='bold', 
-                            horizontalalignment='right' if node.startswith("P") else 'left', ax=ax1)
+    nx.draw_networkx_labels(G_rag, label_pos_rag, font_size=8, font_weight='bold', 
+                            horizontalalignment='center', verticalalignment='center', ax=ax1)
 
     # Set axis limits to prevent truncation
     x_coords = [pos_rag[node][0] for node in pos_rag]
@@ -372,15 +372,13 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         label_color = 'red' if edge in deadlock_edges else 'black'
         ax2.text(label_x, label_y, "W", fontsize=8, color=label_color, ha='center', va='center')
 
-    # Draw node labels with adjusted offset (just outside circle)
+    # Draw node labels with labels inside circles
     label_pos_wfg = pos_wfg.copy()
     for node in label_pos_wfg:
         x, y = label_pos_wfg[node]
-        angle = np.arctan2(y, x)
-        offset = 0.15  # Outside circle (radius ~0.1 + 0.05)
-        label_pos_wfg[node] = (x + offset * np.cos(angle), y + offset * np.sin(angle))
-    nx.draw_networkx_labels(G_wfg, label_pos_wfg, font_size=9, font_weight='bold', 
-                            horizontalalignment='center', ax=ax2)
+        label_pos_wfg[node] = (x, y)  # Inside circle (center of node)
+    nx.draw_networkx_labels(G_wfg, label_pos_wfg, font_size=8, font_weight='bold', 
+                            horizontalalignment='center', verticalalignment='center', ax=ax2)
 
     # Set axis limits to prevent truncation
     x_coords = [pos_wfg[node][0] for node in pos_wfg]
@@ -448,12 +446,20 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1, padx=5, pady=5)
 
-        # Bind mouse wheel scrolling
-        def on_mouse_wheel(event):
-            text_widget.yview_scroll(-1 * int(event.delta / 120), "units")
-        text_widget.bind("<MouseWheel>", on_mouse_wheel)  # Windows
-        text_widget.bind("<Button-4>", lambda e: text_widget.yview_scroll(-1, "units"))  # Linux
-        text_widget.bind("<Button-5>", lambda e: text_widget.yview_scroll(1, "units"))  # Linux
+        # Bind scroll events for mouse wheel and touchpad compatibility
+        def on_scroll(event):
+            delta = event.delta if hasattr(event, 'delta') else (-1 if event.num == 4 else 1)
+            text_widget.yview_scroll(-1 * (delta // 120 if hasattr(event, 'delta') else delta), "units")
+            print(f"Scroll event triggered: delta={event.delta if hasattr(event, 'delta') else event.num}")
+            return "break"  # Prevent event propagation to parent widgets
+        
+        # Bind events for Windows (MouseWheel) and Linux/Mac (Button-4/5)
+        for widget in [root, text_widget, text_frame, canvas.get_tk_widget()]:
+            widget.bind("<MouseWheel>", on_scroll)
+            widget.bind("<Button-4>", on_scroll)
+            widget.bind("<Button-5>", on_scroll)
+            # Add Shift-MouseWheel for potential horizontal or alternative scrolling
+            widget.bind("<Shift-MouseWheel>", lambda e: on_scroll(e))
 
         # Display "No Safe Sequence Found" for deadlock case
         plt.figtext(0.5, 0.15, "No Safe Sequence Found", ha="center", fontsize=9, color='orange', weight='bold', 
