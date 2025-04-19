@@ -220,6 +220,9 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
             details = get_deadlock_details(cycle, resources_held, resources_wanted)
             all_deadlock_details.append((f"Cycle {i+1}", details))
 
+    print(f"WFG Deadlock Cycles: {wfg_deadlock_cycles}")
+    print(f"All Deadlock Details: {all_deadlock_details}")
+
     # Define node types for RAG
     processes = [n for n in G_rag.nodes if n.startswith("P")]
     resources = [n for n in G_rag.nodes if n.startswith("R")]
@@ -335,7 +338,7 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
     nx.draw_networkx_nodes(G_wfg, pos_wfg, nodelist=[n for n in G_wfg.nodes if n not in wfg_deadlock_nodes], 
                            node_shape='o', node_color='#add8e6', node_size=500, 
                            edgecolors='black', linewidths=0.5, ax=ax2)
-    nx.draw_networkx_nodes(G_wfg, pos_wfg, nodelist=[n for n in wfg_deadlock_nodes], 
+    nx.draw_networkx_nodes(G_wfg, pos_wfg, nodelist=[n for n in G_wfg.nodes if n in wfg_deadlock_nodes], 
                            node_shape='o', node_color='#ff9999', node_size=500, 
                            edgecolors='black', linewidths=0.5, ax=ax2)
 
@@ -351,18 +354,21 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
                            width=1.2, arrows=True, arrowstyle='->', arrowsize=25, 
                            connectionstyle='arc3,rad=0.1', ax=ax2)
 
-    # Add edge labels
+    # Add edge labels (W) positioned outward from the graph center
     for edge in G_wfg.edges:
         u, v = edge
         x1, y1 = pos_wfg[u]
         x2, y2 = pos_wfg[v]
         mid_x, mid_y = (x1 + x2) / 2, (y1 + y2) / 2
-        dx, dy = x2 - x1, y2 - y1
-        length = np.sqrt(dx**2 + dy**2)
+        # Compute direction from center (0, 0) to midpoint
+        length = np.sqrt(mid_x**2 + mid_y**2)
         if length > 0:
-            dx, dy = dx / length, dy / length
-        offset_x, offset_y = -dy * 0.05, dx * 0.05
-        label_x, label_y = mid_x + offset_x, mid_y + offset_y
+            norm_x, norm_y = mid_x / length, mid_y / length
+        else:
+            norm_x, norm_y = 0, 0
+        # Place label outward from midpoint
+        offset = 0.15
+        label_x, label_y = mid_x + norm_x * offset, mid_y + norm_y * offset
         label_color = 'red' if edge in deadlock_edges else 'black'
         ax2.text(label_x, label_y, "W", fontsize=8, color=label_color, ha='center', va='center')
 
@@ -381,7 +387,6 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
     y_coords = [pos_wfg[node][1] for node in pos_wfg]
     x_min, x_max = min(x_coords), max(x_coords)
     y_min, y_max = min(y_coords), max(y_coords)
-    # Add extra margin to accommodate labels
     ax2.set_xlim(x_min - 0.7, x_max + 0.7)
     ax2.set_ylim(y_min - 0.7, y_max + 0.7)
 
@@ -421,6 +426,7 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
             for detail in details:
                 cycle_text_content += f"  {detail}\n"
             cycle_text_content += "\n"
+    print(f"Cycle Text Content:\n{cycle_text_content}")
 
     # Create Tkinter window for scrollable text if needed
     if root and cycle_text_content:
@@ -431,28 +437,26 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
         # Create scrollable text area
         text_frame = tk.Frame(root)
         text_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=1)
-        text_canvas = tk.Canvas(text_frame, height=100)
-        scrollbar = Scrollbar(text_frame, orient=tk.VERTICAL, command=text_canvas.yview)
-        scrollable_frame = tk.Frame(text_canvas)
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: text_canvas.configure(scrollregion=text_canvas.bbox("all"))
-        )
-
-        text_canvas.create_window((0, 0), window=scrollable_frame, anchor="ne")
-        text_canvas.configure(yscrollcommand=scrollbar.set)
-
-        text_widget = Text(scrollable_frame, wrap=tk.WORD, width=50, height=10, font=("Arial", 9))
+        scrollbar = Scrollbar(text_frame, orient=tk.VERTICAL)
+        text_widget = Text(text_frame, wrap=tk.WORD, width=50, height=15, font=("Arial", 9), 
+                          yscrollcommand=scrollbar.set)
+        scrollbar.config(command=text_widget.yview)
         text_widget.insert(tk.END, cycle_text_content)
         text_widget.config(state=tk.DISABLED)
-        text_widget.pack(side=tk.RIGHT, anchor="se", padx=5, pady=5)
-
-        text_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+        
+        # Pack widgets
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1, padx=5, pady=5)
+
+        # Bind mouse wheel scrolling
+        def on_mouse_wheel(event):
+            text_widget.yview_scroll(-1 * int(event.delta / 120), "units")
+        text_widget.bind("<MouseWheel>", on_mouse_wheel)  # Windows
+        text_widget.bind("<Button-4>", lambda e: text_widget.yview_scroll(-1, "units"))  # Linux
+        text_widget.bind("<Button-5>", lambda e: text_widget.yview_scroll(1, "units"))  # Linux
 
         # Display "No Safe Sequence Found" for deadlock case
-        plt.figtext(0.5, 0.18, "No Safe Sequence Found", ha="center", fontsize=9, color='orange', weight='bold', 
+        plt.figtext(0.5, 0.15, "No Safe Sequence Found", ha="center", fontsize=9, color='orange', weight='bold', 
                     bbox=dict(facecolor='white', edgecolor='orange', boxstyle='round,pad=0.3'))
     else:
         # Handle no-deadlock case or fallback rendering
@@ -460,13 +464,13 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
             text = "No Deadlock"
             if safe_sequence:
                 text += "\nSafe Sequence Found: " + " -> ".join(safe_sequence)
-            plt.figtext(0.5, 0.18, text, ha="center", fontsize=9, color='green', weight='bold', 
+            plt.figtext(0.5, 0.15, text, ha="center", fontsize=9, color='green', weight='bold', 
                         bbox=dict(facecolor='white', edgecolor='green', boxstyle='round,pad=0.3'))
         elif not root:
             # Fallback to figtext for deadlock case without Tkinter
-            plt.figtext(0.5, 0.18, "No Safe Sequence Found", ha="center", fontsize=9, color='orange', weight='bold', 
+            plt.figtext(0.5, 0.15, "No Safe Sequence Found", ha="center", fontsize=9, color='orange', weight='bold', 
                         bbox=dict(facecolor='white', edgecolor='orange', boxstyle='round,pad=0.3'))
-            y_position = 0.18
+            y_position = 0.12
             involved_processes = set()
             for _, cycle in wfg_deadlock_cycles:
                 involved_processes.update([node for node in cycle if node.startswith("P")])
@@ -475,17 +479,17 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
                 plt.figtext(0.95, y_position, f"Processes Involved: {', '.join(involved_processes)}", 
                             ha="right", fontsize=9, color='red', weight='bold', 
                             bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'))
-                y_position -= 0.04
+                y_position -= 0.03
             for i, (cycle_name, cycle) in enumerate(wfg_deadlock_cycles):
                 plt.figtext(0.95, y_position, f"{cycle_name}: {' -> '.join(cycle)}", 
                             ha="right", fontsize=9, color='red', weight='bold', 
                             bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'))
-                y_position -= 0.04
+                y_position -= 0.03
                 details = all_deadlock_details[i][1]
                 for detail in details:
                     plt.figtext(0.95, y_position, detail, ha="right", fontsize=8, color='red', 
                                 wrap=True, bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'))
-                    y_position -= 0.04
+                    y_position -= 0.03
 
     # Adjust layout to accommodate legend and text
     plt.subplots_adjust(left=0.05, right=0.95, top=0.85, bottom=0.35, wspace=0.4)
