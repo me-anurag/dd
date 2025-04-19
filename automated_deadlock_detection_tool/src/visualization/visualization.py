@@ -326,7 +326,7 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
     ax1.axis('off')
 
     # --- WFG (Right Subplot) ---
-    pos_wfg = nx.spring_layout(G_wfg, scale=1.5, k=0.5)
+    pos_wfg = nx.circular_layout(G_wfg, scale=2.5)
 
     # Draw nodes
     wfg_deadlock_nodes = set()
@@ -381,8 +381,9 @@ def visualize_rag(rag, resources_held, resources_wanted, deadlock_cycle=None, to
     y_coords = [pos_wfg[node][1] for node in pos_wfg]
     x_min, x_max = min(x_coords), max(x_coords)
     y_min, y_max = min(y_coords), max(y_coords)
-    ax2.set_xlim(x_min - 0.5, x_max + 0.5)
-    ax2.set_ylim(y_min - 0.5, y_max + 0.5)
+    # Add extra margin to accommodate labels
+    ax2.set_xlim(x_min - 0.7, x_max + 0.7)
+    ax2.set_ylim(y_min - 0.7, y_max + 0.7)
 
     ax2.set_title("Wait-For Graph", fontsize=12, pad=10, fontweight='bold')
     ax2.axis('off')
