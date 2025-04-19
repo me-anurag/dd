@@ -1,31 +1,32 @@
+# sync_cycle_visualization.py
+
 import tkinter as tk
 from deadlock_algo import DeadlockDetector
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.patches import Rectangle, Circle  # Added Circle for highlight
+from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 import time
 import threading
 import os
 import pygame
 
-class CycleVisualization:
-    """Handles the simulation and narrative visualization of the cycle detection algorithm."""
-    def __init__(self, gui, window, mode):
+class SyncCycleVisualization:
+    """Handles synchronized narrative and simulation visualization of the cycle detection algorithm."""
+    def __init__(self, gui, window):
         self.gui = gui
         self.window = window
-        self.mode = mode
-        self.sound_manager = gui.sound_manager  # Access SoundManager from GUI
+        self.sound_manager = gui.sound_manager
         self.detector = DeadlockDetector(self.gui.resources_held, self.gui.resources_wanted, self.gui.total_resources)
         self.rag = self.detector.build_rag()
         self.steps = []
         self.current_step = 0
         self.cycle = None
         self.narrative = []
-        self.is_playing = False  # Track play/pause state
-        self.play_thread = None  # Store the play thread
-        self.window_valid = True  # Track window validity
+        self.is_playing = False
+        self.play_thread = None
+        self.window_valid = True
 
         # Bind window close event
         self.window.protocol("WM_DELETE_WINDOW", self._on_window_close)
@@ -38,9 +39,9 @@ class CycleVisualization:
 
     def _on_window_close(self):
         """Handle window close event."""
-        self.is_playing = False  # Stop auto-play
-        self.window_valid = False  # Mark window as invalid
-        self.window.destroy()  # Proceed with closing
+        self.is_playing = False
+        self.window_valid = False
+        self.window.destroy()
 
     def _run_dfs_with_steps(self):
         """Modified DFS to log each step for visualization and narrative."""
@@ -124,10 +125,10 @@ class CycleVisualization:
         self.narrative = narrative
 
     def _setup_ui(self):
-        """Sets up the UI for simulation or narrative mode."""
+        """Sets up the UI for synchronized narrative and simulation."""
         self.canvas = tk.Canvas(self.window, highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
-        self.gui.add_gradient(self.canvas, "#A3BFFA", "#F3F4F6", 800, 600)
+        self.gui.add_gradient(self.canvas, "#A3BFFA", "#F3F4F6", 1200, 700)
 
         # Bind resize event to update gradient
         def on_resize(event):
@@ -137,72 +138,93 @@ class CycleVisualization:
             new_height = self.canvas.winfo_height()
             self.canvas.delete("all")
             self.gui.add_gradient(self.canvas, "#A3BFFA", "#F3F4F6", new_width, new_height)
-            # Re-place UI elements to ensure they remain centered
-            if self.mode == "simulation":
-                control_frame.place(relx=0.5, rely=0.1, anchor="center")
-                self.fig_canvas.get_tk_widget().place(relx=0.5, rely=0.55, anchor="center")
-            else:
-                title_label.place(relx=0.5, rely=0.05, anchor="center")
-                text_frame.place(relx=0.5, rely=0.55, anchor="center", relwidth=0.9, relheight=0.8)
-                control_frame.place(relx=0.5, rely=0.95, anchor="center")
+            # Re-place UI elements
+            main_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.95, relheight=0.85)
+            control_frame.place(relx=0.5, rely=0.95, anchor="center")
 
         self.canvas.bind("<Configure>", on_resize)
 
-        if self.mode == "simulation":
-            # Control frame
-            control_frame = tk.Frame(self.canvas, bg="#A3BFFA")
-            control_frame.place(relx=0.5, rely=0.1, anchor="center")
+        # Main frame to hold narrative and simulation
+        main_frame = tk.Frame(self.canvas, bg="#F3F4F6")
+        main_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.95, relheight=0.85)
 
-            prev_button = tk.Button(control_frame, text="⬅️ Previous", font=("Arial", 12),
-                                    command=self.prev_step, bg="#FF9800", fg="white")
-            prev_button.pack(side=tk.LEFT, padx=5)
-            next_button = tk.Button(control_frame, text="Next ➡️", font=("Arial", 12),
-                                    command=self.next_step, bg="#4CAF50", fg="white")
-            next_button.pack(side=tk.LEFT, padx=5)
-            play_button = tk.Button(control_frame, text="▶️ Play", font=("Arial", 12),
-                                    command=self.play_simulation, bg="#2196F3", fg="white")
-            play_button.pack(side=tk.LEFT, padx=5)
+        # Left panel: Narrative
+        narrative_frame = tk.Frame(main_frame, bg="#F3F4F6")
+        narrative_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        narrative_title = tk.Label(narrative_frame, text="Algo's Cycle Detection Narrative",
+                                   font=("Helvetica", 16, "bold"), bg="#F3F4F6", fg="#2E3A59")
+        narrative_title.pack(anchor="n", pady=5)
+        self.text_area = tk.Text(narrative_frame, wrap=tk.WORD, font=("Arial", 12), bg="#FFFFFF", fg="#2E3A59", height=20, width=50)
+        scrollbar = tk.Scrollbar(narrative_frame, command=self.text_area.yview)
+        self.text_area.config(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-            # Matplotlib figure
-            self.fig, self.ax = plt.subplots(figsize=(8, 5))
-            self.ax.set_facecolor('#f8f9fa')
-            self.ax.grid(True, linestyle='--', alpha=0.3)
-            self.fig_canvas = FigureCanvasTkAgg(self.fig, master=self.canvas)
-            self.fig_canvas.get_tk_widget().place(relx=0.5, rely=0.55, anchor="center")
-            self._draw_step()
+        # Right panel: Simulation
+        simulation_frame = tk.Frame(main_frame, bg="#F3F4F6")
+        simulation_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        simulation_title = tk.Label(simulation_frame, text="Cycle Detection Simulation",
+                                    font=("Helvetica", 16, "bold"), bg="#F3F4F6", fg="#2E3A59")
+        simulation_title.pack(anchor="n", pady=5)
+        self.fig, self.ax = plt.subplots(figsize=(6, 5))
+        self.ax.set_facecolor('#f8f9fa')
+        self.ax.grid(True, linestyle='--', alpha=0.3)
+        self.fig_canvas = FigureCanvasTkAgg(self.fig, master=simulation_frame)
+        self.fig_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        else:  # Narrative mode
-            title_label = tk.Label(self.canvas, text="Algo's Cycle Detection Adventure",
-                                   font=("Helvetica", 20, "bold"), bg="#A3BFFA", fg="#2E3A59")
-            title_label.place(relx=0.5, rely=0.05, anchor="center")
+        # Control frame
+        control_frame = tk.Frame(self.canvas, bg="#A3BFFA")
+        control_frame.place(relx=0.5, rely=0.95, anchor="center")
+        prev_button = tk.Button(control_frame, text="⬅️ Previous", font=("Arial", 12),
+                                command=self.prev_step, bg="#FF9800", fg="white")
+        prev_button.pack(side=tk.LEFT, padx=5)
+        next_button = tk.Button(control_frame, text="Next ➡️", font=("Arial", 12),
+                                command=self.next_step, bg="#4CAF50", fg="white")
+        next_button.pack(side=tk.LEFT, padx=5)
+        self.play_pause_button = tk.Button(control_frame, text="▶️ Play", font=("Arial", 12),
+                                           command=self.toggle_play_pause, bg="#2196F3", fg="white")
+        self.play_pause_button.pack(side=tk.LEFT, padx=5)
 
-            # Scrollable text area
-            text_frame = tk.Frame(self.canvas, bg="#F3F4F6")
-            text_frame.place(relx=0.5, rely=0.55, anchor="center", relwidth=0.9, relheight=0.8)
+        # Initial display
+        self._update_display()
 
-            self.text_area = tk.Text(text_frame, wrap=tk.WORD, font=("Arial", 12), bg="#F3F4F6", fg="#2E3A59")
-            scrollbar = tk.Scrollbar(text_frame, command=self.text_area.yview)
-            self.text_area.config(yscrollcommand=scrollbar.set)
-            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-            self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    def _update_display(self):
+        """Updates both narrative and simulation for the current step."""
+        self._show_narrative()
+        self._draw_simulation()
 
-            # Control buttons
-            control_frame = tk.Frame(self.canvas, bg="#A3BFFA")
-            control_frame.place(relx=0.5, rely=0.95, anchor="center")
-            prev_button = tk.Button(control_frame, text="⬅️ Previous", font=("Arial", 12),
-                                    command=self.prev_narrative, bg="#FF9800", fg="white")
-            prev_button.pack(side=tk.LEFT, padx=5)
-            next_button = tk.Button(control_frame, text="Next ➡️", font=("Arial", 12),
-                                    command=self.next_narrative, bg="#4CAF50", fg="white")
-            next_button.pack(side=tk.LEFT, padx=5)
-            self.play_pause_button = tk.Button(control_frame, text="▶️ Play", font=("Arial", 12),
-                                               command=self.toggle_play_pause, bg="#2196F3", fg="white")
-            self.play_pause_button.pack(side=tk.LEFT, padx=5)
+    def _show_narrative(self):
+        """Displays the narrative text up to the current step."""
+        if not self.window_valid or not self.text_area.winfo_exists():
+            return
+        try:
+            self.text_area.delete(1.0, tk.END)
+            for i, line in enumerate(self.narrative[:self.current_step + 1]):
+                self.text_area.insert(tk.END, f"{line}\n\n")
+            self.text_area.see(tk.END)
+        except tk.TclError as e:
+            print(f"Tkinter error in _show_narrative: {e}")
+            self.is_playing = False
+            self.window_valid = False
+            return
+        if self.sound_manager.sound_enabled:
+            try:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                pop_sound_path = os.path.join(script_dir, "..", "..", "assets", "pop.wav")
+                pop_sound = pygame.mixer.Sound(pop_sound_path)
+                pop_sound.play()
+            except FileNotFoundError:
+                print(f"Error: 'assets/pop.wav' not found at {pop_sound_path}.")
+            except Exception as e:
+                print(f"Error playing pop sound: {e}")
+        if self.current_step == len(self.narrative) - 1:
+            if self.cycle:
+                self.sound_manager.play_deadlock_sound()
+            else:
+                self.sound_manager.play_safe_sound()
 
-            self._show_narrative()
-
-    def _draw_step(self):
-        """Draws the current step of the simulation with highlighted current node."""
+    def _draw_simulation(self):
+        """Draws the current step of the simulation."""
         if self.current_step >= len(self.steps):
             return
 
@@ -219,7 +241,7 @@ class CycleVisualization:
         self.ax.clear()
         self.ax.set_facecolor('#f8f9fa')
         self.ax.grid(True, linestyle='--', alpha=0.3)
-        self.ax.set_title(f"Step {self.current_step + 1}: {action.capitalize()}", fontsize=14)
+        self.ax.set_title(f"Step {self.current_step + 1}: {action.capitalize()}", fontsize=12)
 
         # Create graph
         G = nx.DiGraph()
@@ -244,18 +266,6 @@ class CycleVisualization:
                 node_colors.append('#90ee90')  # Visited
             else:
                 node_colors.append('#add8e6')  # Unvisited
-
-        # Draw highlight for current node first (behind the node)
-        if node in pos:
-            x, y = pos[node]
-            if node.startswith("P"):
-                # Highlight for process (circle)
-                highlight = Circle((x, y), 0.12, facecolor='#ff6666', edgecolor='none', alpha=0.5, zorder=0)
-                self.ax.add_patch(highlight)
-            else:
-                # Highlight for resource (rectangle)
-                highlight = Rectangle((x - 0.1, y - 0.1), 0.2, 0.2, facecolor='#ff6666', edgecolor='none', alpha=0.5, zorder=0)
-                self.ax.add_patch(highlight)
 
         # Draw nodes
         nx.draw_networkx_nodes(G, pos, nodelist=processes, node_shape='o',
@@ -326,103 +336,48 @@ class CycleVisualization:
         if cycle_edges:
             legend_elements.append(Line2D([0], [0], color='red', lw=2.0, label='Cycle Edge'))
 
-        # Move legend below the graph
         self.ax.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.3), fontsize=9,
                        ncol=4, frameon=True, edgecolor='black', framealpha=1)
 
         self.ax.axis('off')
-        # Adjust layout to accommodate legend
-        self.fig.subplots_adjust(bottom=0.25)  # Add space at the bottom for the legend
+        self.fig.subplots_adjust(bottom=0.25)
         self.fig.tight_layout()
         self.fig_canvas.draw()
 
     def prev_step(self):
-        """Shows the previous step in the simulation."""
+        """Shows the previous step in the visualization."""
         if self.current_step > 0:
             self.current_step -= 1
-            self._draw_step()
+            self._update_display()
 
     def next_step(self):
-        """Shows the next step in the simulation."""
-        if self.current_step < len(self.steps) - 1:
+        """Shows the next step in the visualization."""
+        if self.current_step < len(self.steps) - 1 and self.window_valid:
             self.current_step += 1
-            self._draw_step()
-
-    def play_simulation(self):
-        """Plays the simulation automatically."""
-        def play():
-            while self.current_step < len(self.steps) - 1 and self.window_valid:
-                self.current_step += 1
-                self._draw_step()
-                self.fig_canvas.get_tk_widget().update()
-                time.sleep(1)
-        threading.Thread(target=play, daemon=True).start()
-
-    def _show_narrative(self):
-        """Displays the narrative text up to the current step."""
-        if not self.window_valid or not self.text_area.winfo_exists():
-            return  # Skip if window or widget is invalid
-        try:
-            self.text_area.delete(1.0, tk.END)
-            for i, line in enumerate(self.narrative[:self.current_step + 1]):
-                self.text_area.insert(tk.END, f"{line}\n\n")
-            self.text_area.see(tk.END)
-        except tk.TclError as e:
-            print(f"Tkinter error in _show_narrative: {e}")
-            self.is_playing = False
-            self.window_valid = False
-            return
-        if self.sound_manager.sound_enabled:
-            try:
-                # Resolve path to assets/ relative to src/visualization/
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-                pop_sound_path = os.path.join(script_dir, "..", "..", "assets", "pop.wav")
-                pop_sound = pygame.mixer.Sound(pop_sound_path)
-                pop_sound.play()
-            except FileNotFoundError:
-                print(f"Error: 'assets/pop.wav' not found at {pop_sound_path}. Please ensure the file exists in the assets directory.")
-            except Exception as e:
-                print(f"Error playing pop sound: {e}")
-        if self.current_step == len(self.narrative) - 1:
-            if self.cycle:
-                self.sound_manager.play_deadlock_sound()
-            else:
-                self.sound_manager.play_safe_sound()
-
-    def prev_narrative(self):
-        """Shows the previous narrative step."""
-        if self.current_step > 0:
-            self.current_step -= 1
-            self._show_narrative()
-
-    def next_narrative(self):
-        """Shows the next narrative step."""
-        if self.current_step < len(self.narrative) - 1 and self.window_valid:
-            self.current_step += 1
-            self._show_narrative()
+            self._update_display()
 
     def toggle_play_pause(self):
-        """Toggles between play and pause for automatic narrative progression."""
+        """Toggles between play and pause for automatic progression."""
         if self.is_playing:
             self.is_playing = False
             if self.window_valid and self.play_pause_button.winfo_exists():
                 self.play_pause_button.config(text="▶️ Play")
-            self.play_thread = None  # Allow thread to terminate
+            self.play_thread = None
         else:
             if not self.window_valid:
                 return
             self.is_playing = True
             if self.play_pause_button.winfo_exists():
                 self.play_pause_button.config(text="⏸️ Pause")
-            self.play_thread = threading.Thread(target=self._auto_play_narrative, daemon=True)
+            self.play_thread = threading.Thread(target=self._auto_play, daemon=True)
             self.play_thread.start()
 
-    def _auto_play_narrative(self):
-        """Automatically advances the narrative with a 3-second gap."""
-        while self.is_playing and self.current_step < len(self.narrative) - 1 and self.window_valid:
-            self.window.after(0, self.next_narrative)
+    def _auto_play(self):
+        """Automatically advances the visualization with a 3-second gap."""
+        while self.is_playing and self.current_step < len(self.steps) - 1 and self.window_valid:
+            self.window.after(0, self.next_step)
             time.sleep(3)
-        if self.current_step >= len(self.narrative) - 1 or not self.window_valid:
+        if self.current_step >= len(self.steps) - 1 or not self.window_valid:
             self.is_playing = False
             if self.window_valid and self.play_pause_button.winfo_exists():
                 self.window.after(0, lambda: self.play_pause_button.config(text="▶️ Play"))

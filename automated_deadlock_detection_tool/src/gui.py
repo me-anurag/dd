@@ -6,6 +6,7 @@ import time
 from deadlock_algo import DeadlockDetector
 from visualization.visualization import visualize_rag
 from visualization.cycle_visualization import CycleVisualization
+from visualization.sync_cycle_visualization import SyncCycleVisualization  # Import the new class
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -354,7 +355,7 @@ class DeadlockDetectionGUI:
         self.button_visualize.bind("<Enter>", lambda e: self.visualize_frame.config(bg="#388E3C"))
         self.button_visualize.bind("<Leave>", lambda e: self.visualize_frame.config(bg="#4CAF50"))
 
-        # Visualization button for Simulation and Narrative
+        # Visualization button for Simulation, Narrative, and Synchronized
         self.cycle_viz_frame = tk.Frame(button_frame, bg="#FFC107", bd=3, relief="raised")
         self.cycle_viz_frame.pack(side=tk.LEFT, padx=5)
         self.button_cycle_viz = tk.Label(self.cycle_viz_frame, text="🎥 Visualization",
@@ -411,7 +412,7 @@ class DeadlockDetectionGUI:
             messagebox.showerror("Error", str(e), parent=self.new_window)
 
     def open_cycle_visualization(self):
-        """Opens a new window with options for Simulation and Narrative visualization."""
+        """Opens a new window with options for Simulation, Narrative, and Synchronized visualization."""
         try:
             # Validate input before proceeding
             detector = DeadlockDetector(self.resources_held, self.resources_wanted, self.total_resources)
@@ -439,7 +440,7 @@ class DeadlockDetectionGUI:
                                font=("Helvetica", 20, "bold"), bg="#A3BFFA", fg="#2E3A59")
         title_label.place(relx=0.5, rely=0.1, anchor="center")
 
-        # Button frame for Simulation and Narrative
+        # Button frame for Simulation, Narrative, and Synchronized
         button_frame = tk.Frame(viz_canvas, bg="#A3BFFA")
         button_frame.place(relx=0.5, rely=0.2, anchor="center")
 
@@ -469,6 +470,19 @@ class DeadlockDetectionGUI:
         narr_button.bind("<Enter>", lambda e: narr_frame.config(bg="#388E3C"))
         narr_button.bind("<Leave>", lambda e: narr_frame.config(bg="#4CAF50"))
 
+        # Synchronized button
+        sync_frame = tk.Frame(button_frame, bg="#FFC107", bd=3, relief="raised")
+        sync_frame.pack(side=tk.LEFT, padx=10)
+        sync_button = tk.Label(sync_frame, text="🔄 Synchronized",
+                               font=("Arial", 16, "bold"), bg="#FFC107", fg="white", padx=20, pady=10)
+        sync_button.pack()
+        sync_frame.bind("<Button-1>", lambda e: self.start_synchronized(viz_window))
+        sync_button.bind("<Button-1>", lambda e: self.start_synchronized(viz_window))
+        sync_frame.bind("<Enter>", lambda e: sync_frame.config(bg="#FFA000"))
+        sync_frame.bind("<Leave>", lambda e: sync_frame.config(bg="#FFC107"))
+        sync_button.bind("<Enter>", lambda e: sync_frame.config(bg="#FFA000"))
+        sync_button.bind("<Leave>", lambda e: sync_frame.config(bg="#FFC107"))
+
     def start_simulation(self, viz_window):
         """Starts the simulation visualization in a new window."""
         sim_window = tk.Toplevel(viz_window)
@@ -484,6 +498,14 @@ class DeadlockDetectionGUI:
         narr_window.geometry("800x600")
         narr_window.grab_set()
         CycleVisualization(self, narr_window, "narrative")
+
+    def start_synchronized(self, viz_window):
+        """Starts the synchronized narrative and simulation visualization."""
+        sync_window = tk.Toplevel(viz_window)
+        sync_window.title("Cycle Detection Synchronized Visualization")
+        sync_window.geometry("1200x700")
+        sync_window.grab_set()
+        SyncCycleVisualization(self, sync_window)
 
     def reset_everything(self):
         """Resets the canvas and all data to the initial state."""
