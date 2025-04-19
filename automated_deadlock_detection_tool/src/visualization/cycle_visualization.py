@@ -129,6 +129,25 @@ class CycleVisualization:
         self.canvas.pack(fill="both", expand=True)
         self.gui.add_gradient(self.canvas, "#A3BFFA", "#F3F4F6", 800, 600)
 
+        # Bind resize event to update gradient
+        def on_resize(event):
+            if not self.window_valid:
+                return
+            new_width = self.canvas.winfo_width()
+            new_height = self.canvas.winfo_height()
+            self.canvas.delete("all")
+            self.gui.add_gradient(self.canvas, "#A3BFFA", "#F3F4F6", new_width, new_height)
+            # Re-place UI elements to ensure they remain centered
+            if self.mode == "simulation":
+                control_frame.place(relx=0.5, rely=0.1, anchor="center")
+                self.fig_canvas.get_tk_widget().place(relx=0.5, rely=0.55, anchor="center")
+            else:
+                title_label.place(relx=0.5, rely=0.05, anchor="center")
+                text_frame.place(relx=0.5, rely=0.55, anchor="center", relwidth=0.9, relheight=0.8)
+                control_frame.place(relx=0.5, rely=0.95, anchor="center")
+
+        self.canvas.bind("<Configure>", on_resize)
+
         if self.mode == "simulation":
             # Control frame
             control_frame = tk.Frame(self.canvas, bg="#A3BFFA")
@@ -294,9 +313,14 @@ class CycleVisualization:
             legend_elements.append(Line2D([0], [0], color='blue', lw=2.0, label='Checking Edge'))
         if cycle_edges:
             legend_elements.append(Line2D([0], [0], color='red', lw=2.0, label='Cycle Edge'))
-        self.ax.legend(handles=legend_elements, loc='upper right', fontsize=9)
+        
+        # Move legend below the graph
+        self.ax.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.3), fontsize=9,
+                       ncol=4, frameon=True, edgecolor='black', framealpha=1)
 
         self.ax.axis('off')
+        # Adjust layout to accommodate legend
+        self.fig.subplots_adjust(bottom=0.25)  # Add space at the bottom for the legend
         self.fig.tight_layout()
         self.fig_canvas.draw()
 
@@ -315,7 +339,7 @@ class CycleVisualization:
     def play_simulation(self):
         """Plays the simulation automatically."""
         def play():
-            while self.current_step < len(self.steps) - 1:
+            while self.current_step < len(self.steps) - 1 and self.window_valid:
                 self.current_step += 1
                 self._draw_step()
                 self.fig_canvas.get_tk_widget().update()
