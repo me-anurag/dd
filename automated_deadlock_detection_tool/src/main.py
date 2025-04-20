@@ -14,6 +14,7 @@ def main():
     parser.add_argument("--deadlock-sound", default="assets/deadlock_alarm.wav", help="Path to deadlock sound")
     parser.add_argument("--safe-sound", default="assets/safe_chime.wav", help="Path to safe state sound")
     parser.add_argument("--rewind-sound", default="assets/rewind_whoosh.wav", help="Path to rewind sound")
+    parser.add_argument("--pop-sound", default="assets/pop.wav", help="Path to pop sound")
     args = parser.parse_args()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,7 @@ def main():
     deadlock_sound_path = os.path.join(base_dir, "..", args.deadlock_sound)
     safe_sound_path = os.path.join(base_dir, "..", args.safe_sound)
     rewind_sound_path = os.path.join(base_dir, "..", args.rewind_sound)
+    pop_sound_path = os.path.join(base_dir, "..", args.pop_sound)
 
     # Print paths for debugging
     print(f"Base directory: {base_dir}")
@@ -34,15 +36,16 @@ def main():
     print(f"Deadlock sound path: {deadlock_sound_path}")
     print(f"Safe sound path: {safe_sound_path}")
     print(f"Rewind sound path: {rewind_sound_path}")
+    print(f"Pop sound path: {pop_sound_path}")
 
     # Verify files exist
     for path in [radar_sound_path, click_sound_path, chime_sound_path, suspense_sound_path, 
-                 deadlock_sound_path, safe_sound_path, rewind_sound_path]:
+                 deadlock_sound_path, safe_sound_path, rewind_sound_path, pop_sound_path]:
         if not os.path.exists(path):
             print(f"Warning: File not found at {path}")
 
     sound_manager = SoundManager(radar_sound_path, click_sound_path, chime_sound_path, suspense_sound_path, 
-                                deadlock_sound_path, safe_sound_path, rewind_sound_path)
+                                deadlock_sound_path, safe_sound_path, rewind_sound_path, pop_sound_path)
 
     main_window = tk.Tk()
     app = DeadlockDetectionGUI(main_window, sound_manager)
