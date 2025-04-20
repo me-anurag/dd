@@ -28,11 +28,12 @@ class CycleVisualization:
         self.is_playing = False
         self.play_thread = None
         self.window_valid = True
+        self.tic_channel = None  # Channel for looping tic.wav in simulation mode
 
         # Load narrative templates
         script_dir = os.path.dirname(os.path.abspath(__file__))
         try:
-            with open(os.path.join(script_dir, 'narrative.json'), 'r', encoding='utf-8') as f:  # Specify UTF-8
+            with open(os.path.join(script_dir, 'narrative.json'), 'r', encoding='utf-8') as f:
                 self.narrative_templates = json.load(f)
         except FileNotFoundError:
             print("Error: narrative.json not found. Using fallback narrative.")
@@ -59,6 +60,8 @@ class CycleVisualization:
     def _on_window_close(self):
         """Handle window close event."""
         self.is_playing = False
+        if self.tic_channel:  # Stop tic.wav if playing
+            self.tic_channel.stop()
         self.window_valid = False
         self.window.destroy()
 
@@ -380,14 +383,41 @@ class CycleVisualization:
             self._draw_step()
 
     def play_simulation(self):
-        """Plays the simulation automatically."""
+        """Plays the simulation automatically with tic.wav looping and end sound."""
         def play():
+            if self.sound_manager.sound_enabled:
+                try:
+                    script_dir = os.path.dirname(os.path.abspath(__file__))
+                    tic_sound_path = os.path.join(script_dir, "..", "..", "assets", "tic.wav")
+                    tic_sound = pygame.mixer.Sound(tic_sound_path)
+                    self.tic_channel = pygame.mixer.Channel(0)  # Use channel 0 for tic.wav
+                    self.tic_channel.play(tic_sound, loops=-1)  # Loop indefinitely
+                except FileNotFoundError:
+                    print(f"Error: 'assets/tic.wav' not found at {tic_sound_path}.")
+                except Exception as e:
+                    print(f"Error playing tic sound: {e}")
+
             while self.current_step < len(self.steps) - 1 and self.window_valid:
                 self.current_step += 1
                 self._draw_step()
                 self.fig_canvas.get_tk_widget().update()
                 time.sleep(1)
-        threading.Thread(target=play, daemon=True).start()
+
+            if self.window_valid and self.sound_manager.sound_enabled:
+                if self.tic_channel:
+                    self.tic_channel.stop()  # Stop tic.wav at the end
+                try:
+                    if self.cycle:
+                        self.sound_manager.play_deadlock_sound()
+                    else:
+                        self.sound_manager.play_safe_sound()
+                except Exception as e:
+                    print(f"Error playing end sound: {e}")
+
+        if not self.is_playing:  # Prevent multiple threads
+            self.is_playing = True
+            self.play_thread = threading.Thread(target=play, daemon=True)
+            self.play_thread.start()
 
     def _show_narrative(self):
         """Displays the narrative text up to the current step with progress indicator."""
