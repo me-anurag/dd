@@ -99,12 +99,12 @@ class RecoveryModes:
         self.button_frame.place(relx=0.5, rely=0.5, anchor="center")
 
     def narrative_mode(self):
-        """Narrates the Banker's Algorithm steps with detailed calculations."""
+        """Narrates the Banker's Algorithm steps with vivid, voiceover-style commentary."""
         if not self.detector.has_deadlock and not self.detector.safe_sequence:
             self.detector.detect_deadlock()  # Ensure detector has run
 
         narrative_window = tk.Toplevel(self.window)
-        narrative_window.title("Narrative Mode")
+        narrative_window.title("Detective's Log: Deadlock Investigation")
         narrative_window.geometry("800x600")
         narrative_window.grab_set()
 
@@ -115,33 +115,53 @@ class RecoveryModes:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         text_area.config(yscrollcommand=scrollbar.set)
 
-        def append_text(message):
+        def append_text(message, sound_action="check"):
             text_area.insert(tk.END, message + "\n\n")
             text_area.see(tk.END)
             if self.sound_manager.sound_enabled:
-                self.sound_manager.play_allocate_sound()  # Play pop.wav
+                if sound_action == "start":
+                    self.sound_manager.play_radar_sound()  # 📡 radar_ping.wav
+                    logging.info("Playing start detection sound: radar_ping.wav")
+                elif sound_action == "check":
+                    self.sound_manager.play_click_sound()  # ✅ click.wav
+                    logging.info("Playing process check sound: click.wav")
+                elif sound_action == "allocate":
+                    self.sound_manager.play_chime_sound()  # 🔔 chime.wav
+                    logging.info("Playing resource allocation sound: chime.wav")
+                elif sound_action == "wait":
+                    self.sound_manager.play_suspense_sound()  # ⚠️ suspense_hum.wav
+                    logging.info("Playing wait detected sound: suspense_hum.wav")
+                elif sound_action == "deadlock":
+                    self.sound_manager.play_deadlock_sound()  # 🚨 deadlock_alarm.wav
+                    logging.info("Playing deadlock detected sound: deadlock_alarm.wav")
+                elif sound_action == "safe":
+                    self.sound_manager.play_safe_sound()  # 🌤️ safe_chime.wav
+                    logging.info("Playing safe state sound: safe_chime.wav")
+                elif sound_action == "retry":
+                    self.sound_manager.play_rewind_sound()  # 🔁 rewind_whoosh.wav
+                    logging.info("Playing retry/backtrack sound: rewind_whoosh.wav")
             narrative_window.update()
             time.sleep(1.5)  # Pause for readability
 
         try:
-            # Start narration
-            append_text("🎉 Hello, adventurers! I'm your Deadlock Detective, here to guide you through the Banker's Algorithm with a fun twist! Let's see if our system is safe or stuck in a deadlock! Ready? Let's go!")
+            # Intro
+            append_text("📡 *Bzzzt!* This is the Deadlock Detective Agency, hot on the trail of a resource mystery! I’m your chief investigator, ready to untangle this system. Is it safe, or are we headed for a deadlock? Let’s find out!", sound_action="start")
 
-            # Step 1: Show input data
-            append_text("📋 First, let's look at our resources. Here's the total stash in the system:")
+            # Step 1: Display input data
+            append_text("🗳️ First, let’s open the evidence vault. Here’s the system’s resource stash:")
             total_res = ", ".join([f"{r}: {self.total_resources[r]}" for r in self.resources])
-            append_text(f"Total Resources: {total_res}")
+            append_text(f"Total Resources: {total_res}", sound_action="check")
             avail_res = ", ".join([f"{r}: {self.available[r]}" for r in self.resources])
-            append_text(f"Available Resources (ready to use): {avail_res}")
+            append_text(f"Available Resources (up for grabs): {avail_res}", sound_action="check")
 
-            append_text("🔍 Now, let's check what each process is holding and what they need:")
+            append_text("🕵️‍♂️ Now, let’s interrogate our suspects—the processes. What are they holding, and what do they need?")
             for p in self.processes:
                 alloc = ", ".join([f"{r}: {self.allocation[p][r]}" for r in self.resources])
                 max_m = ", ".join([f"{r}: {self.max_matrix[p][r]}" for r in self.resources])
-                append_text(f"Process {p}: Allocated = [{alloc}], Max = [{max_m}]")
+                append_text(f"Process {p}: Holding [{alloc}], Demanding up to [{max_m}]", sound_action="check")
 
             # Step 2: Compute Need matrix
-            append_text("🧮 Time to calculate what each process still needs. We use Need = Max - Allocation. Let's crunch the numbers!")
+            append_text("📊 Time to crunch some numbers. We need to know what each process is still chasing. Need = Max - Allocation. Let’s do the math!", sound_action="check")
             need = self.detector.get_need()
             for p in self.processes:
                 need_str = []
@@ -150,12 +170,12 @@ class RecoveryModes:
                     alloc_val = self.allocation[p][r]
                     need_val = max_val - alloc_val
                     need_str.append(f"{r}: {need_val} ({max_val} - {alloc_val})")
-                append_text(f"Process {p} Needs: [{', '.join(need_str)}]")
+                append_text(f"Process {p} is after: [{', '.join(need_str)}]", sound_action="check")
 
             # Step 3: Run Banker's Algorithm
-            append_text("🏃 Here comes the fun part! We'll try to find a safe sequence where all processes can finish. We start with our available resources as the 'Work' vector.")
+            append_text("🕵️‍♂️ Here we go, diving into the Banker’s Algorithm! We’re searching for a safe path where every process gets what it needs. Starting with our available resources as the ‘Work’ pool.", sound_action="start")
             work = self.available.copy()
-            append_text(f"Initial Work vector: {', '.join([f'{r}: {work[r]}' for r in self.resources])}")
+            append_text(f"Work Pool: [{', '.join([f'{r}: {work[r]}' for r in self.resources])}]", sound_action="check")
             finish = {p: False for p in self.processes}
             safe_sequence = []
             remaining_processes = self.processes.copy()
@@ -163,46 +183,44 @@ class RecoveryModes:
             while remaining_processes:
                 found = False
                 for p in remaining_processes[:]:
-                    append_text(f"🔎 Checking if Process {p} can run...")
+                    append_text(f"🔎 Checking Process {p}... Can it get what it needs to finish?", sound_action="check")
                     can_run = True
                     need_vals = need[p]
                     comparisons = []
                     for r in self.resources:
                         if need_vals[r] > work[r]:
                             can_run = False
-                            comparisons.append(f"{r}: Need {need_vals[r]} > Work {work[r]} (Nope!)")
+                            comparisons.append(f"{r}: Needs {need_vals[r]} but only {work[r]} available (Not enough!)")
                         else:
-                            comparisons.append(f"{r}: Need {need_vals[r]} <= Work {work[r]} (Good!)")
-                    append_text(f"Comparing Needs vs. Work for {p}: [{', '.join(comparisons)}]")
+                            comparisons.append(f"{r}: Needs {need_vals[r]} ≤ {work[r]} (We’ve got this!)")
+                    append_text(f"Clues for {p}: [{', '.join(comparisons)}]", sound_action="wait")
                     if can_run and not finish[p]:
-                        append_text(f"✅ Yay! Process {p} can run with Needs [{', '.join([f'{r}: {need[p][r]}' for r in self.resources])}] and Work [{', '.join([f'{r}: {work[r]}' for r in self.resources])}].")
+                        append_text(f"🔔 Jackpot! Process {p} can proceed with Needs [{', '.join([f'{r}: {need[p][r]}' for r in self.resources])}]. It’s good to go!", sound_action="allocate")
                         # Release resources
                         for r in self.resources:
                             work[r] += self.allocation[p].get(r, 0)
-                        append_text(f"Process {p} finishes, releasing its resources. New Work: [{', '.join([f'{r}: {work[r]}' for r in self.resources])}]")
+                        append_text(f"Process {p} wraps up and tosses back its resources. New Work Pool: [{', '.join([f'{r}: {work[r]}' for r in self.resources])}]", sound_action="allocate")
                         finish[p] = True
                         safe_sequence.append(p)
                         remaining_processes.remove(p)
                         found = True
                         break
                     else:
-                        append_text(f"😕 Process {p} can't run yet. Let's try another process!")
+                        append_text(f"⚠️ Trouble! Process {p} is stuck waiting for more resources. Let’s move on for now.", sound_action="wait")
                 if not found:
-                    append_text("😓 Oh no! No process can run with the current Work vector. We're stuck!")
+                    append_text("🔁 Dead end! No process can move forward with our current Work Pool. Time to backtrack!", sound_action="retry")
                     break
 
             # Step 4: Conclusion
             if len(safe_sequence) == len(self.processes):
-                append_text(f"🎉 Hooray! We found a safe sequence: {safe_sequence}! The system is safe! Time to celebrate!")
-                if self.sound_manager.sound_enabled:
-                    self.sound_manager.play_safe_sound()  # Play safe_sound.wav
+                append_text(f"🌤️ Case solved! We’ve got a safe sequence: {safe_sequence}! Every process can finish smoothly. High five, team!", sound_action="safe")
             else:
                 unfinished = [p for p in self.processes if not finish[p]]
-                append_text(f"🚨 Alert! The system is in an unsafe state or deadlocked! Processes {unfinished} can't proceed.")
-                if self.sound_manager.sound_enabled:
-                    self.sound_manager.play_deadlock_sound()  # Play deadlock_sound.wav
+                append_text(f"🚨 Emergency! We’ve hit a deadlock—or at least an unsafe state. Processes {unfinished} are tangled up!", sound_action="deadlock")
 
-            append_text("🔚 That's the end of our detective adventure! Thanks for joining me! 😎")
+            # Outro
+            append_text("🎬 Case closed! Whether we saved the day or uncovered a deadlock, you’ve seen the Banker’s Algorithm crack the code. Until the next mystery, detectives!", sound_action="safe")
+
             text_area.config(state=tk.DISABLED)
 
         except Exception as e:
@@ -232,7 +250,7 @@ class RecoveryModes:
             text_area.insert(tk.END, message + "\n\n")
             text_area.see(tk.END)
             if self.sound_manager.sound_enabled:
-                self.sound_manager.play_allocate_sound()  # Play tic.wav (mapped to allocate_sound)
+                self.sound_manager.play_click_sound()  # Play click.wav for simulation steps
             preemption_window.update()
             time.sleep(1.5)  # Pause for readability
 
@@ -257,7 +275,7 @@ class RecoveryModes:
                     append_text("🎉 All processes can finish! The system is safe!")
                     safe = True
                     if self.sound_manager.sound_enabled:
-                        self.sound_manager.play_safe_sound()  # Play safe_sound.wav
+                        self.sound_manager.play_safe_sound()  # Play safe_chime.wav
                     break
 
                 # Select a process to preempt (highest total allocation)
@@ -310,7 +328,7 @@ class RecoveryModes:
                     append_text(f"🎉 Success! The system is safe with sequence: {detector.safe_sequence}!")
                     safe = True
                     if self.sound_manager.sound_enabled:
-                        self.sound_manager.play_safe_sound()  # Play safe_sound.wav
+                        self.sound_manager.play_safe_sound()  # Play safe_chime.wav
                 else:
                     append_text(f"😕 Still unsafe: {message}. Let's try preempting another process...")
                     preempted_processes.append(victim)
@@ -319,7 +337,7 @@ class RecoveryModes:
             if not safe:
                 append_text("😓 Unable to achieve a safe state after preempting all possible resources.")
                 if self.sound_manager.sound_enabled:
-                    self.sound_manager.play_deadlock_sound()  # Play deadlock_sound.wav
+                    self.sound_manager.play_deadlock_sound()  # Play deadlock_alarm.wav
 
             text_area.config(state=tk.DISABLED)
 
@@ -350,7 +368,7 @@ class RecoveryModes:
             text_area.insert(tk.END, message + "\n\n")
             text_area.see(tk.END)
             if self.sound_manager.sound_enabled:
-                self.sound_manager.play_allocate_sound()  # Play tic.wav (mapped to allocate_sound)
+                self.sound_manager.play_click_sound()  #.ConcurrentModificationException Play click.wav for simulation steps
             termination_window.update()
             time.sleep(1.5)  # Pause for readability
 
@@ -409,7 +427,7 @@ class RecoveryModes:
                     append_text(f"🎉 Success! After terminating {victim}, the system is safe with sequence: {detector.safe_sequence}!")
                     safe = True
                     if self.sound_manager.sound_enabled:
-                        self.sound_manager.play_safe_sound()  # Play safe_sound.wav
+                        self.sound_manager.play_safe_sound()  # Play safe_chime.wav
                 else:
                     append_text(f"😕 Still unsafe: {message}. Let's terminate another process...")
 
@@ -418,7 +436,7 @@ class RecoveryModes:
             if not safe:
                 append_text("😓 Unable to find a safe state even after terminating all processes.")
                 if self.sound_manager.sound_enabled:
-                    self.sound_manager.play_deadlock_sound()  # Play deadlock_sound.wav
+                    self.sound_manager.play_deadlock_sound()  # Play deadlock_alarm.wav
 
             text_area.config(state=tk.DISABLED)
 

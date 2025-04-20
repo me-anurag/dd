@@ -88,3 +88,7 @@ Traceback (most recent call last):
     max_val = self.max_matrix[p].get(r, 0)
               ~~~~~~~~~~~~~~~^^^
 KeyError: 'P1'
+ERROR:root:Error in resource preemption mode: invalid command name ".!toplevel.!toplevel2.!toplevel2.!text"
+ERROR:root:Error in narrative mode: invalid command name ".!toplevel.!toplevel2.!toplevel3.!text"
+ERROR:root:Error in narrative mode: cannot access local variable 'window_valid' where it is not associated with a value
+ERROR:root:Error in narrative mode: cannot access local variable 'window_valid' where it is not associated with a value
