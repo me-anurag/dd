@@ -3,7 +3,8 @@ from tkinter import ttk
 from tkinter import messagebox
 import time
 from multi_deadlock_algo import MultiInstanceDeadlockDetector
-from multi_visualization import visualize_multi_rag  # Import the new visualization
+from multi_visualization import visualize_multi_rag
+from recovery_modes import RecoveryModes  # Import the new recovery modes
 
 class MultiInstanceDeadlockGUI:
     """A GUI for detecting deadlocks in a system with multi-instance resources.
@@ -231,6 +232,12 @@ class MultiInstanceDeadlockGUI:
         self.visualize_button.bind("<Enter>", lambda e: self.visualize_button.config(bg="#388E3C"))
         self.visualize_button.bind("<Leave>", lambda e: self.visualize_button.config(bg="#4CAF50"))
 
+        self.recovery_button = tk.Button(self.button_frame, text="🛠️ Recovery", font=("Arial", 12, "bold"),
+                                         command=self.open_recovery_window, bg="#FF5722", fg="white", padx=15, pady=5)
+        self.recovery_button.pack(side=tk.LEFT, padx=10)
+        self.recovery_button.bind("<Enter>", lambda e: self.recovery_button.config(bg="#E64A19"))
+        self.recovery_button.bind("<Leave>", lambda e: self.recovery_button.config(bg="#FF5722"))
+
         self.reset_button = tk.Button(self.button_frame, text="🔄 Reset", font=("Arial", 12, "bold"),
                                       command=self.reset, bg="#FF9800", fg="white", padx=15, pady=5)
         self.reset_button.pack(side=tk.LEFT, padx=10)
@@ -239,6 +246,21 @@ class MultiInstanceDeadlockGUI:
 
         # Bind resize for the new window
         self.input_window.bind("<Configure>", self.on_input_window_resize)
+
+    def open_recovery_window(self):
+        """Opens a new window for recovery modes."""
+        try:
+            self._collect_data()
+            if not self.last_detector:
+                detector = MultiInstanceDeadlockDetector(self.allocation, self.max_matrix, self.available, self.total_resources)
+                detector.detect_deadlock()
+                self.last_detector = detector
+
+            recovery_window = tk.Toplevel(self.window)
+            recovery_modes = RecoveryModes(recovery_window, self.sound_manager, self.last_detector, self.allocation,
+                                          self.max_matrix, self.available, self.total_resources)
+        except ValueError as e:
+            messagebox.showerror("Error", str(e), parent=self.input_window)
 
     def on_input_window_resize(self, event):
         """Handles resizing of the input window."""

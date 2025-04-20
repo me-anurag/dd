@@ -70,9 +70,13 @@ def visualize_multi_rag(rag, flat_allocation, need, safe_sequence=None, unfinish
         rect = Rectangle((x - 0.4, y - 0.2), 0.8, 0.4, fill=True, color="lightgreen", ec="black")
         ax.add_patch(rect)
         # Add dots based on total instances
-        total_instances = max([need[p][r] + flat_allocation[p].count(r) for p in processes])
-        for dot in range(min(total_instances, 5)):
+        total_instances = sum(need[p][r] + flat_allocation[p].count(r) for p in processes)
+        max_dots = 5  # Maximum number of dots to display
+        for dot in range(min(int(total_instances), max_dots)):
             ax.plot(x - 0.3 + (dot * 0.15), y, 'o', color="black", markersize=5)
+        # If total_instances > max_dots, add a label to indicate additional instances
+        if total_instances > max_dots:
+            ax.text(x + 0.4, y, f"+{int(total_instances - max_dots)}", fontsize=8, color="black", va="center")
 
     # Draw edges
     for edge in G_rag.edges(data=True):
@@ -94,12 +98,21 @@ def visualize_multi_rag(rag, flat_allocation, need, safe_sequence=None, unfinish
     # Draw labels
     nx.draw_networkx_labels(G_rag, pos, font_size=12, ax=ax)
 
-    # Set title and legend
+    # Set title
     ax.set_title("Multi-Instance Resource Allocation Graph", pad=20)
     ax.axis("off")
-    plt.figtext(0.5, 0.95, "Legend: Circles = Processes, Rectangles = Resources", ha="center", fontsize=10)
-    plt.figtext(0.5, 0.92, "Red Solid Arrow = Request (R), Blue Dashed Arrow = Held (H)", ha="center", fontsize=10)
-    plt.figtext(0.5, 0.89, status, ha="center", fontsize=12, color=status_color)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+    # Add legend at bottom-left corner
+    legend_elements = [
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='lightblue', markersize=10, label='Process'),
+        plt.Rectangle((0, 0), 1, 1, facecolor='lightgreen', edgecolor='black', label='Resource'),
+        plt.Line2D([0], [0], color='red', lw=2, label='Request Edge (R)'),
+        plt.Line2D([0], [0], color='blue', lw=2, linestyle='--', label='Held Edge (H)')
+    ]
+    ax.legend(handles=legend_elements, loc='lower left', fontsize=10, frameon=True, bbox_to_anchor=(0, 0))
+
+    # Add status text below the legend
+    plt.figtext(0.05, 0.05, status, ha="left", fontsize=12, color=status_color, wrap=True)
+
+    plt.tight_layout(rect=[0, 0.1, 1, 0.95])
     plt.show()

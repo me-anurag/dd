@@ -4,3 +4,87 @@ ERROR:root:Error loading sounds: No such file or directory: 'd:\deadlock detecti
 ERROR:root:Error loading sounds: No such file or directory: 'd:\deadlock detection\automated_deadlock_detection_tool\src\..\assets/deadlock_sound.wav'.
 ERROR:root:Error loading sounds: No such file or directory: 'd:\deadlock detection\automated_deadlock_detection_tool\src\..\assets/deadlock_sound.wav'.
 ERROR:root:Error loading sounds: No file 'assets/allocate_sound.wav' found in working directory 'D:\deadlock detection'.
+ERROR:root:Unexpected error in open_recovery_window: 'P1'
+Traceback (most recent call last):
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_gui.py", line 485, in open_recovery_window
+    self.process_termination_mode = ProcessTerminationMode(self.content_frame, self.last_detector, self.sound_manager)
+                                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 138, in __init__
+    self._generate_steps()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 187, in _generate_steps
+    need = detector.get_need()
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_deadlock_algo.py", line 30, in get_need
+    max_val = self.max_matrix[p].get(r, 0)
+              ~~~~~~~~~~~~~~~^^^
+KeyError: 'P1'
+ERROR:root:Unexpected error in open_recovery_window: 'P1'
+Traceback (most recent call last):
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_gui.py", line 485, in open_recovery_window
+    self.process_termination_mode = ProcessTerminationMode(self.content_frame, self.last_detector, self.sound_manager)
+                                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 138, in __init__
+    self._generate_steps()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 187, in _generate_steps
+    need = detector.get_need()
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_deadlock_algo.py", line 30, in get_need
+    max_val = self.max_matrix[p].get(r, 0)
+              ~~~~~~~~~~~~~~~^^^
+KeyError: 'P1'
+ERROR:root:Unexpected error in open_recovery_window: 'P1'
+Traceback (most recent call last):
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_gui.py", line 527, in open_recovery_window
+    self.process_termination_mode = ProcessTerminationMode(self.content_frame, self.last_detector, self.sound_manager)
+                                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 138, in __init__
+    self._generate_steps()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 187, in _generate_steps
+    need = detector.get_need()
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_deadlock_algo.py", line 30, in get_need
+    max_val = self.max_matrix[p].get(r, 0)
+              ~~~~~~~~~~~~~~~^^^
+KeyError: 'P1'
+ERROR:root:Unexpected error in open_recovery_window: 'P1'
+Traceback (most recent call last):
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_gui.py", line 533, in open_recovery_window
+    self.process_termination_mode = ProcessTerminationMode(self.content_frame, self.last_detector, self.sound_manager)
+                                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 138, in __init__
+    self._generate_steps()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 187, in _generate_steps
+    need = detector.get_need()
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_deadlock_algo.py", line 43, in get_need
+    max_val = self.max_matrix[p].get(r, 0)
+              ~~~~~~~~~~~~~~~^^^
+KeyError: 'P1'
+ERROR:root:Unexpected error in open_recovery_window: 'P1'
+Traceback (most recent call last):
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_gui.py", line 527, in open_recovery_window
+    self.process_termination_mode = ProcessTerminationMode(self.content_frame, detector, self.sound_manager)
+                                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 138, in __init__
+    self._generate_steps()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 187, in _generate_steps
+    need = detector.get_need()
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_deadlock_algo.py", line 53, in get_need
+    max_val = self.max_matrix[p].get(r, 0)
+              ~~~~~~~~~~~~~~~^^^
+KeyError: 'P1'
+ERROR:root:Unexpected error in open_recovery_window: 'P1'
+Traceback (most recent call last):
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_gui.py", line 541, in open_recovery_window
+    self.process_termination_mode = ProcessTerminationMode(self.content_frame, detector, self.sound_manager)
+                                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 142, in __init__
+    self._generate_steps()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\recovery_modes.py", line 194, in _generate_steps
+    need = detector.get_need()
+  File "d:\deadlock detection - Copy\automated_deadlock_detection_tool\src\multi_deadlock_algo.py", line 69, in get_need
+    max_val = self.max_matrix[p].get(r, 0)
+              ~~~~~~~~~~~~~~~^^^
+KeyError: 'P1'
