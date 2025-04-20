@@ -265,7 +265,7 @@ class CycleVisualization:
             self._show_narrative()
 
     def _draw_step(self):
-        """Draws the current step of the simulation with highlighted current node."""
+        """Draws the current step of the simulation with highlighted current node and informative heading."""
         if self.current_step >= len(self.steps):
             return
         step = self.steps[self.current_step]
@@ -279,18 +279,22 @@ class CycleVisualization:
         self.ax.clear()
         self.ax.set_facecolor('#f8f9fa')
         self.ax.grid(True, linestyle='--', alpha=0.3)
+
+        # Set informative title based on action
         if action == 'visit':
-            title = f"Step {self.current_step + 1}: Visiting Node {node}"
+            title = f"Step {self.current_step + 1}: Visiting Node {node}, Adding to Stack and Exploring Connections"
         elif action == 'check_edge':
-            title = f"Step {self.current_step + 1}: Checking Edge {node} -> {neighbor}"
+            edge_type = "Holds" if node.startswith("R") else "Requests"
+            title = f"Step {self.current_step + 1}: Checking Edge {node} {edge_type} {neighbor}, Following Dependency"
         elif action == 'cycle_found':
             cycle_str = " -> ".join(cycle)
-            title = f"Step {self.current_step + 1}: Cycle Detected: {cycle_str}"
+            title = f"Step {self.current_step + 1}: Cycle Detected at {neighbor}: {cycle_str}, Deadlock Found"
         elif action == 'backtrack':
-            title = f"Step {self.current_step + 1}: Backtracking from {node}"
+            title = f"Step {self.current_step + 1}: Backtracking from {node}, No Cycle Found, Removing from Stack"
         else:
             title = f"Step {self.current_step + 1}: {action.capitalize()}"
-        self.ax.set_title(title, fontsize=14)
+        self.ax.set_title(title, fontsize=12, pad=10)
+
         G = nx.DiGraph()
         for n in self.rag:
             G.add_node(n)
@@ -302,21 +306,27 @@ class CycleVisualization:
         node_colors = []
         for n in G.nodes:
             if n == node:
-                node_colors.append('#ff9999')
+                node_colors.append('#ff3333')  # Bright red for current node
             elif n in recursion_stack:
                 node_colors.append('#ffd700')
             elif n in visited:
                 node_colors.append('#90ee90')
             else:
                 node_colors.append('#add8e6')
+
+        # Highlight current node with larger, more prominent effect
         if node in pos:
             x, y = pos[node]
             if node.startswith("P"):
-                highlight = Circle((x, y), 0.12, facecolor='#ff6666', edgecolor='none', alpha=0.5, zorder=0)
+                # Larger circle with border for processes
+                highlight = Circle((x, y), 0.18, facecolor='#ff3333', edgecolor='black', linewidth=2, alpha=0.7, zorder=0)
                 self.ax.add_patch(highlight)
             else:
-                highlight = Rectangle((x - 0.1, y - 0.1), 0.2, 0.2, facecolor='#ff6666', edgecolor='none', alpha=0.5, zorder=0)
+                # Larger rectangle with border for resources
+                highlight = Rectangle((x - 0.15, y - 0.15), 0.3, 0.3, facecolor='#ff3333', edgecolor='black', linewidth=2, alpha=0.7, zorder=0)
                 self.ax.add_patch(highlight)
+
+        # Draw nodes
         nx.draw_networkx_nodes(G, pos, nodelist=processes, node_shape='o',
                                node_color=[node_colors[list(G.nodes).index(n)] for n in processes],
                                node_size=600, edgecolors='black', ax=self.ax)
@@ -326,6 +336,8 @@ class CycleVisualization:
             rect = Rectangle((x - 0.08, y - 0.08), 0.16, 0.16, facecolor=color, edgecolor='black', linewidth=0.5)
             self.ax.add_patch(rect)
             self.ax.plot(x, y, 'ko', markersize=5)
+
+        # Draw edges
         allocation_edges = [(u, v) for u, v in G.edges if u.startswith("R") and v.startswith("P")]
         request_edges = [(u, v) for u, v in G.edges if u.startswith("P") and v.startswith("R")]
         highlight_edge = [(node, neighbor)] if action == 'check_edge' and neighbor else []
@@ -344,6 +356,8 @@ class CycleVisualization:
                                    edge_color='red', width=2.0, arrows=True, arrowstyle='-|>', arrowsize=15, ax=self.ax)
             nx.draw_networkx_edges(G, pos, edgelist=[e for e in cycle_edges if e in request_edges],
                                    edge_color='red', width=2.0, arrows=True, arrowstyle='->', arrowsize=15, ax=self.ax)
+
+        # Label edges
         for edge in allocation_edges:
             u, v = edge
             x1, y1 = pos[u]
@@ -358,16 +372,20 @@ class CycleVisualization:
             mid_x, mid_y = (x1 + x2) / 2, (y1 + y2) / 2
             color = 'red' if edge in cycle_edges else ('blue' if edge in highlight_edge else 'black')
             self.ax.text(mid_x + 0.05, mid_y, "R", fontsize=8, color=color, ha='left', va='center')
+
+        # Draw node labels
         label_pos = pos.copy()
         for n in label_pos:
             x, y = label_pos[n]
             label_pos[n] = (x - 0.15 if n.startswith("P") else x + 0.15, y)
         nx.draw_networkx_labels(G, label_pos, font_size=10, font_weight='bold', ax=self.ax)
+
+        # Add legend
         legend_elements = [
             Line2D([0], [0], marker='o', color='w', label='Process', markerfacecolor='#add8e6', markersize=10),
             Line2D([0], [0], marker='s', color='w', label='Resource', markerfacecolor='#add8e6', markersize=10),
             Line2D([0], [0], color='black', lw=1.2, label='Held (H)/Request (R)'),
-            Line2D([0], [0], marker='o', color='w', label='Current Node', markerfacecolor='#ff9999', markersize=10),
+            Line2D([0], [0], marker='o', color='w', label='Current Node', markerfacecolor='#ff3333', markersize=10),
             Line2D([0], [0], marker='o', color='w', label='In Stack', markerfacecolor='#ffd700', markersize=10),
             Line2D([0], [0], marker='o', color='w', label='Visited', markerfacecolor='#90ee90', markersize=10)
         ]
