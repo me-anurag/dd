@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import copy
-import time
 import logging
 from multi_deadlock_algo import MultiInstanceDeadlockDetector
 from multi_visualization import visualize_multi_rag
@@ -233,7 +232,7 @@ class RecoveryModes:
             """Step 4: Run the Banker's Algorithm with detailed narration."""
             append_text(
                 "🕵️‍♂️ Now, the main event! We’re deploying the Banker’s Algorithm to find a safe path through this resource jungle. Deadlocks are like a standoff where everyone’s waiting for someone else. This algorithm checks if we can satisfy all processes safely, avoiding a resource trap!",
-                sound_action="check",  # Changed from "start" to avoid radar_ping.wav
+                sound_action="check",
                 callback=lambda: run_bankers(0, self.available.copy(), {p: False for p in self.processes}, [], self.processes.copy())
             )
 
@@ -364,13 +363,13 @@ class RecoveryModes:
             text_area.config(state=tk.DISABLED)
 
     def resource_preemption_mode(self):
-        """Simulates resource preemption with detailed step-by-step descriptions."""
+        """Simulates resource preemption with detailed, detective-themed narration."""
         if not self.detector.has_deadlock:
             messagebox.showinfo("No Deadlock", "The system is already in a safe state!", parent=self.window)
             return
 
         preemption_window = tk.Toplevel(self.window)
-        preemption_window.title("Resource Preemption Mode")
+        preemption_window.title("Deadlock Detective: Resource Preemption")
         preemption_window.geometry("800x600")
         preemption_window.grab_set()
 
@@ -381,107 +380,188 @@ class RecoveryModes:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         text_area.config(yscrollcommand=scrollbar.set)
 
-        def append_text(message):
+        def append_text(message, sound_action="check", callback=None):
+            """Appends text to the text area, plays the specified sound, and schedules the next step."""
             text_area.insert(tk.END, message + "\n\n")
             text_area.see(tk.END)
             if self.sound_manager.sound_enabled:
-                self.sound_manager.play_click_sound()
+                try:
+                    self.sound_manager.play_sound_with_fadeout(sound_action, 1500)
+                    logging.info(f"Playing {sound_action} sound: {sound_action}.wav")
+                except Exception as e:
+                    logging.error(f"Error playing sound {sound_action}: {e}")
             preemption_window.update()
-            time.sleep(1.5)
+            if callback:
+                preemption_window.after(1500, callback)
 
-        try:
-            allocation = copy.deepcopy(self.allocation)
-            available = copy.deepcopy(self.available)
-            need = self.detector.get_need()
-            rag = self._build_rag(need)
-            flat_allocation = self._flatten_allocation(allocation)
+        def step_intro():
+            """Step 1: Introduction to preemption."""
+            append_text(
+                "📡 *Bzzzt!* Deadlock Detective Agency, back on the case! The system’s tangled in a deadlock, and we’re gonna bust it open by preempting resources. We’ll snatch resources from processes to free up the grid—let’s get to work!",
+                sound_action="radar",
+                callback=step_analyze
+            )
 
-            append_text("🔄 Starting Resource Preemption! We'll take resources from processes to free up the system and make it safe.")
+        def step_analyze():
+            """Step 2: Start the preemption process."""
+            append_text(
+                "🔎 The mission: break the deadlock by reallocating resources. We’ll identify resource hogs and redirect their assets to clear the path. Let’s scan the system!",
+                sound_action="check",
+                callback=lambda: process_step(1, copy.deepcopy(self.allocation), copy.deepcopy(self.available), [], self.detector.get_need())
+            )
 
-            safe = False
-            step = 1
-            preempted_processes = []
-            while not safe and step <= len(self.processes):
-                append_text(f"📌 Step {step}: Analyzing the system...")
-                unfinished = [p for p in self.processes if p not in preempted_processes and any(need[p][r] > 0 for r in self.resources)]
-                if not unfinished:
-                    append_text("🎉 All processes can finish! The system is safe!")
-                    safe = True
-                    if self.sound_manager.sound_enabled:
-                        self.sound_manager.play_safe_sound()
-                    break
-
-                total_alloc = {p: sum(allocation[p][r] for r in self.resources) for p in unfinished}
-                if not total_alloc:
-                    append_text("⚠️ No processes with allocated resources left to preempt!")
-                    break
-                victim = max(total_alloc, key=total_alloc.get)
-                append_text(f"👀 Choosing process {victim} to preempt. It holds {total_alloc[victim]} total resources.")
-
-                alloc_str = ", ".join([f"{r}: {allocation[victim][r]}" for r in self.resources])
-                append_text(f"Current Allocation for {victim}: [{alloc_str}]")
-                avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
-                append_text(f"Current Available Resources: [{avail_str}]")
-
-                released = {}
-                has_resources = False
+        def select_victim(unfinished, need, available):
+            """Selects the process to preempt based on resource criticality."""
+            if not unfinished:
+                return None
+            # Score processes based on how many scarce resources they hold
+            scores = {}
+            for p in unfinished:
+                score = 0
                 for r in self.resources:
-                    if allocation[victim][r] > 0:
-                        released[r] = allocation[victim][r]
-                        available[r] += allocation[victim][r]
-                        allocation[victim][r] = 0
-                        need[victim][r] = self.max_matrix[victim][r]
-                        has_resources = True
-                if has_resources:
-                    released_str = ", ".join([f"{r}: {released[r]}" for r in released])
-                    append_text(f"🔄 Preempted resources from {victim}: [{released_str}]")
-                    new_avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
-                    append_text(f"New Available Resources: [{new_avail_str}]")
-                else:
-                    append_text(f"⚠️ Process {victim} has no resources to preempt!")
-                    preempted_processes.append(victim)
-                    step += 1
-                    continue
+                    if need[p][r] > 0 and available[r] < need[p][r]:
+                        score += self.allocation[p][r] * (need[p][r] - available[r])
+                scores[p] = score if score > 0 else sum(self.allocation[p][r] for r in self.resources)
+            return max(scores, key=scores.get) if scores else None
 
-                append_text("📊 Updating the Resource Allocation Graph...")
-                rag = self._build_rag(need)
-                flat_allocation = self._flatten_allocation(allocation)
-                visualize_multi_rag(rag, flat_allocation, need, unfinished_processes=unfinished)
+        def process_step(step, allocation, available, preempted_processes, need):
+            """Step 3: Process each preemption step."""
+            append_text(
+                f"🕵️‍♂️ Step {step}: Scanning the resource grid for our next target...",
+                sound_action="check",
+                callback=lambda: check_system(step, allocation, available, preempted_processes, need)
+            )
 
-                append_text("🔍 Checking if the system is safe...")
-                detector = MultiInstanceDeadlockDetector(allocation, self.max_matrix, available, self.total_resources)
-                has_deadlock, message = detector.detect_deadlock()
-                append_text(f"Running Banker's Algorithm with Available: [{', '.join([f'{r}: {available[r]}' for r in self.resources])}]")
-                if not has_deadlock:
-                    append_text(f"🎉 Success! The system is safe with sequence: {detector.safe_sequence}!")
-                    safe = True
-                    if self.sound_manager.sound_enabled:
-                        self.sound_manager.play_safe_sound()
-                else:
-                    append_text(f"😕 Still unsafe: {message}. Let's try preempting another process...")
-                    preempted_processes.append(victim)
-                step += 1
+        def check_system(step, allocation, available, preempted_processes, need):
+            unfinished = [p for p in self.processes if p not in preempted_processes and any(need[p][r] > 0 for r in self.resources)]
+            if not unfinished:
+                append_text(
+                    "🌤️ Breakthrough! All processes can proceed. The system’s safe!",
+                    sound_action="safe",
+                    callback=step_outro
+                )
+                return
 
-            if not safe:
-                append_text("😓 Unable to achieve a safe state after preempting all possible resources.")
-                if self.sound_manager.sound_enabled:
-                    self.sound_manager.play_deadlock_sound()
+            victim = select_victim(unfinished, need, available)
+            if not victim:
+                append_text(
+                    "⚠️ No more resource hogs to preempt! We’re out of moves.",
+                    sound_action="deadlock",
+                    callback=step_outro
+                )
+                return
 
+            append_text(
+                f"👀 Got a suspect! Process {victim} is hogging critical resources. Let’s seize their assets to untangle this mess!",
+                sound_action="suspense",
+                callback=lambda: display_victim(step, allocation, available, preempted_processes, need, victim)
+            )
+
+        def display_victim(step, allocation, available, preempted_processes, need, victim):
+            alloc_str = ", ".join([f"{r}: {allocation[victim][r]}" for r in self.resources])
+            avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
+            append_text(
+                f"📋 Evidence on {victim}: Holding [{alloc_str}] | Available Resources: [{avail_str}]",
+                sound_action="pop",
+                callback=lambda: preempt_resources(step, allocation, available, preempted_processes, need, victim)
+            )
+
+        def preempt_resources(step, allocation, available, preempted_processes, need, victim):
+            released = {}
+            has_resources = False
+            for r in self.resources:
+                if allocation[victim][r] > 0:
+                    released[r] = allocation[victim][r]
+                    available[r] += allocation[victim][r]
+                    allocation[victim][r] = 0
+                    need[victim][r] = self.max_matrix[victim][r]
+                    has_resources = True
+            if has_resources:
+                released_str = ", ".join([f"{r}: {released[r]}" for r in released])
+                new_avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
+                append_text(
+                    f"🔄 Seized resources from {victim}: [{released_str}] | New Available Resources: [{new_avail_str}]",
+                    sound_action="rewind",
+                    callback=lambda: update_rag(step, allocation, available, preempted_processes, need, victim)
+                )
+            else:
+                append_text(
+                    f"⚠️ Process {victim} has no resources to seize! Moving on...",
+                    sound_action="wait",
+                    callback=lambda: finalize_step(step, allocation, available, preempted_processes + [victim], need)
+                )
+
+        def update_rag(step, allocation, available, preempted_processes, need, victim):
+            append_text(
+                "📊 Updating the Resource Allocation Graph to reflect our progress...",
+                sound_action="check",
+                callback=lambda: check_safety(step, allocation, available, preempted_processes, need, victim)
+            )
+            # Optional: Visualize RAG (uncomment to enable)
+            # rag = self._build_rag(need)
+            # flat_allocation = self._flatten_allocation(allocation)
+            # visualize_multi_rag(rag, flat_allocation, need, unfinished_processes=[p for p in self.processes if p not in preempted_processes])
+
+        def check_safety(step, allocation, available, preempted_processes, need, victim):
+            detector = MultiInstanceDeadlockDetector(allocation, self.max_matrix, available, self.total_resources)
+            has_deadlock, message = detector.detect_deadlock()
+            append_text(
+                f"🔍 Running the Banker’s Algorithm with Available: [{', '.join([f'{r}: {available[r]}' for r in self.resources])}]",
+                sound_action="check",
+                callback=lambda: display_safety_result(step, allocation, available, preempted_processes, need, victim, has_deadlock, detector)
+            )
+
+        def display_safety_result(step, allocation, available, preempted_processes, need, victim, has_deadlock, detector):
+            if not has_deadlock:
+                append_text(
+                    f"🌟 Case cracked! The system is safe with sequence: {detector.safe_sequence}! Process {victim}’s resources saved the day!",
+                    sound_action="safe",
+                    callback=step_outro
+                )
+            else:
+                append_text(
+                    f"😕 Still tangled: {message}. Process {victim} wasn’t enough. Let’s find another target...",
+                    sound_action="wait",
+                    callback=lambda: finalize_step(step, allocation, available, preempted_processes + [victim], need)
+                )
+
+        def finalize_step(step, allocation, available, preempted_processes, need):
+            if step >= len(self.processes):
+                append_text(
+                    "🚨 Deadlock persists! We’ve run out of processes to preempt. The case remains unsolved!",
+                    sound_action="deadlock",
+                    callback=step_outro
+                )
+            else:
+                process_step(step + 1, allocation, available, preempted_processes, need)
+
+        def step_outro():
+            """Final step: Conclude the preemption process."""
+            append_text(
+                "🎬 Case closed! Whether we broke the deadlock or not, you’ve seen the art of resource preemption in action. Stay sharp, detectives!",
+                sound_action="safe",
+                callback=finalize
+            )
+
+        def finalize():
+            """Disable the text area to end the mode."""
             text_area.config(state=tk.DISABLED)
 
+        try:
+            step_intro()
         except Exception as e:
             logging.error(f"Error in resource preemption mode: {e}")
             messagebox.showerror("Error", f"An error occurred: {e}", parent=preemption_window)
             text_area.config(state=tk.DISABLED)
 
     def process_termination_mode(self):
-        """Simulates process termination with detailed step-by-step descriptions."""
+        """Simulates process termination with detailed, detective-themed narration."""
         if not self.detector.has_deadlock:
             messagebox.showinfo("No Deadlock", "The system is already in a safe state!", parent=self.window)
             return
 
         termination_window = tk.Toplevel(self.window)
-        termination_window.title("Process Termination Mode")
+        termination_window.title("Deadlock Detective: Process Termination")
         termination_window.geometry("800x600")
         termination_window.grab_set()
 
@@ -492,76 +572,163 @@ class RecoveryModes:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         text_area.config(yscrollcommand=scrollbar.set)
 
-        def append_text(message):
+        def append_text(message, sound_action="check", callback=None):
+            """Appends text to the text area, plays the specified sound, and schedules the next step."""
             text_area.insert(tk.END, message + "\n\n")
             text_area.see(tk.END)
             if self.sound_manager.sound_enabled:
-                self.sound_manager.play_click_sound()
+                try:
+                    self.sound_manager.play_sound_with_fadeout(sound_action, 1500)
+                    logging.info(f"Playing {sound_action} sound: {sound_action}.wav")
+                except Exception as e:
+                    logging.error(f"Error playing sound {sound_action}: {e}")
             termination_window.update()
-            time.sleep(1.5)
+            if callback:
+                termination_window.after(1500, callback)
 
-        try:
-            allocation = copy.deepcopy(self.allocation)
-            available = copy.deepcopy(self.available)
-            processes = self.processes.copy()
-            need = self.detector.get_need()
+        def step_intro():
+            """Step 1: Introduction to termination."""
+            append_text(
+                "📡 *Bzzzt!* Deadlock Detective Agency, reporting in! The system’s locked tight in a deadlock. Time to take drastic measures: we’re terminating processes to cut the knot. This is a last resort, so let’s do it clean!",
+                sound_action="radar",
+                callback=step_analyze
+            )
 
-            append_text("🛑 Starting Process Termination! We'll terminate one process at a time to free resources and break the deadlock.")
+        def step_analyze():
+            """Step 2: Start the termination process."""
+            append_text(
+                "🔎 The plan: eliminate processes holding critical resources to free up the system. Each termination is a tough call, but it’s the only way to break this deadlock. Let’s find our first target!",
+                sound_action="check",
+                callback=lambda: process_step(1, copy.deepcopy(self.allocation), copy.deepcopy(self.available), self.processes.copy(), self.detector.get_need())
+            )
 
-            safe = False
-            step = 1
-            while processes and not safe:
-                append_text(f"📌 Step {step}: Analyzing the system...")
-                total_alloc = {p: sum(allocation[p][r] for r in self.resources) for p in processes}
-                victim = max(total_alloc, key=total_alloc.get)
-                append_text(f"👀 Terminating process {victim}. It holds {total_alloc[victim]} total resources.")
-
-                alloc_str = ", ".join([f"{r}: {allocation[victim][r]}" for r in self.resources])
-                append_text(f"Current Allocation for {victim}: [{alloc_str}]")
-                avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
-                append_text(f"Current Available Resources: [{avail_str}]")
-
-                released = {}
+        def select_victim(processes, need, available):
+            """Selects the process to terminate based on resource criticality."""
+            if not processes:
+                return None
+            # Score processes based on how many scarce resources they hold
+            scores = {}
+            for p in processes:
+                score = 0
                 for r in self.resources:
-                    if allocation[victim][r] > 0:
-                        released[r] = allocation[victim][r]
-                        available[r] += allocation[victim][r]
-                        allocation[victim][r] = 0
-                        need[victim][r] = 0
-                released_str = ", ".join([f"{r}: {released[r]}" for r in released]) if released else "None"
-                append_text(f"🔄 Released resources from {victim}: [{released_str}]")
-                new_avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
-                append_text(f"New Available Resources: [{new_avail_str}]")
+                    if need[p][r] > 0 and available[r] < need[p][r]:
+                        score += self.allocation[p][r] * (need[p][r] - available[r])
+                scores[p] = score if score > 0 else sum(self.allocation[p][r] for r in self.resources)
+            return max(scores, key=scores.get) if scores else None
 
-                processes.remove(victim)
-                append_text(f"✅ Process {victim} terminated. Checking if the system is safe...")
+        def process_step(step, allocation, available, processes, need):
+            """Step 3: Process each termination step."""
+            append_text(
+                f"🕵️‍♂️ Step {step}: Scouring the system for the process causing the most trouble...",
+                sound_action="check",
+                callback=lambda: check_system(step, allocation, available, processes, need)
+            )
 
-                append_text("📊 Updating Resource Allocation Graph...")
-                rag = self._build_rag(need)
-                flat_allocation = self._flatten_allocation(allocation)
-                visualize_multi_rag(rag, flat_allocation, need, unfinished_processes=processes)
+        def check_system(step, allocation, available, processes, need):
+            if not processes:
+                append_text(
+                    "🚨 No processes left to terminate! The deadlock’s too tough to crack.",
+                    sound_action="deadlock",
+                    callback=step_outro
+                )
+                return
 
-                append_text("🔍 Running Banker's Algorithm...")
-                detector = MultiInstanceDeadlockDetector(allocation, self.max_matrix, available, self.total_resources)
-                has_deadlock, message = detector.detect_deadlock()
-                append_text(f"Available Resources: [{', '.join([f'{r}: {available[r]}' for r in self.resources])}]")
-                if not has_deadlock:
-                    append_text(f"🎉 Success! After terminating {victim}, the system is safe with sequence: {detector.safe_sequence}!")
-                    safe = True
-                    if self.sound_manager.sound_enabled:
-                        self.sound_manager.play_safe_sound()
-                else:
-                    append_text(f"😕 Still unsafe: {message}. Let's terminate another process...")
+            victim = select_victim(processes, need, available)
+            if not victim:
+                append_text(
+                    "⚠️ No viable targets left! We’re out of options.",
+                    sound_action="deadlock",
+                    callback=step_outro
+                )
+                return
 
-                step += 1
+            append_text(
+                f"👀 Target acquired! Process {victim} is clogging the system. Time to shut it down to free up resources!",
+                sound_action="suspense",
+                callback=lambda: display_victim(step, allocation, available, processes, need, victim)
+            )
 
-            if not safe:
-                append_text("😓 Unable to find a safe state even after terminating all processes.")
-                if self.sound_manager.sound_enabled:
-                    self.sound_manager.play_deadlock_sound()
+        def display_victim(step, allocation, available, processes, need, victim):
+            alloc_str = ", ".join([f"{r}: {allocation[victim][r]}" for r in self.resources])
+            avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
+            append_text(
+                f"📋 Evidence on {victim}: Holding [{alloc_str}] | Available Resources: [{avail_str}]",
+                sound_action="pop",
+                callback=lambda: terminate_process(step, allocation, available, processes, need, victim)
+            )
 
+        def terminate_process(step, allocation, available, processes, need, victim):
+            released = {}
+            for r in self.resources:
+                if allocation[victim][r] > 0:
+                    released[r] = allocation[victim][r]
+                    available[r] += allocation[victim][r]
+                    allocation[victim][r] = 0
+                    need[victim][r] = 0
+            released_str = ", ".join([f"{r}: {released[r]}" for r in released]) if released else "None"
+            new_avail_str = ", ".join([f"{r}: {available[r]}" for r in self.resources])
+            append_text(
+                f"🛑 Process {victim} terminated! Released: [{released_str}] | New Available Resources: [{new_avail_str}]",
+                sound_action="rewind",
+                callback=lambda: update_rag(step, allocation, available, processes, need, victim)
+            )
+
+        def update_rag(step, allocation, available, processes, need, victim):
+            append_text(
+                "📊 Updating the Resource Allocation Graph to reflect the termination...",
+                sound_action="check",
+                callback=lambda: check_safety(step, allocation, available, processes, need, victim)
+            )
+            # Optional: Visualize RAG (uncomment to enable)
+            # rag = self._build_rag(need)
+            # flat_allocation = self._flatten_allocation(allocation)
+            # visualize_multi_rag(rag, flat_allocation, need, unfinished_processes=processes)
+
+        def check_safety(step, allocation, available, processes, need, victim):
+            detector = MultiInstanceDeadlockDetector(allocation, self.max_matrix, available, self.total_resources)
+            has_deadlock, message = detector.detect_deadlock()
+            append_text(
+                f"🔍 Running the Banker’s Algorithm with Available: [{', '.join([f'{r}: {available[r]}' for r in self.resources])}]",
+                sound_action="check",
+                callback=lambda: display_safety_result(step, allocation, available, processes, need, victim, has_deadlock, detector)
+            )
+
+        def display_safety_result(step, allocation, available, processes, need, victim, has_deadlock, detector):
+            if not has_deadlock:
+                append_text(
+                    f"🌟 Case cracked! After terminating {victim}, the system is safe with sequence: {detector.safe_sequence}! A tough call, but it worked!",
+                    sound_action="safe",
+                    callback=step_outro
+                )
+            else:
+                append_text(
+                    f"😕 Still locked: {message}. Termination of {victim} wasn’t enough. We need another target...",
+                    sound_action="wait",
+                    callback=lambda: finalize_step(step, allocation, available, processes, need, victim)
+                )
+
+        def finalize_step(step, allocation, available, processes, need, victim):
+            processes.remove(victim)
+            append_text(
+                f"✅ Process {victim} is out of the game. Checking if the system’s clear...",
+                sound_action="check",
+                callback=lambda: process_step(step + 1, allocation, available, processes, need)
+            )
+
+        def step_outro():
+            """Final step: Conclude the termination process."""
+            append_text(
+                "🎬 Case closed! Termination is a heavy price, but sometimes it’s the only way. Keep those systems safe, detectives!",
+                sound_action="safe",
+                callback=finalize
+            )
+
+        def finalize():
+            """Disable the text area to end the mode."""
             text_area.config(state=tk.DISABLED)
 
+        try:
+            step_intro()
         except Exception as e:
             logging.error(f"Error in process termination mode: {e}")
             messagebox.showerror("Error", f"An error occurred: {e}", parent=termination_window)

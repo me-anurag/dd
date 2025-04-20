@@ -92,3 +92,5 @@ ERROR:root:Error in resource preemption mode: invalid command name ".!toplevel.!
 ERROR:root:Error in narrative mode: invalid command name ".!toplevel.!toplevel2.!toplevel3.!text"
 ERROR:root:Error in narrative mode: cannot access local variable 'window_valid' where it is not associated with a value
 ERROR:root:Error in narrative mode: cannot access local variable 'window_valid' where it is not associated with a value
+ERROR:root:Error in narrative mode: 'RecoveryModes' object has no attribute 'update_buttons'
+ERROR:root:Error in resource preemption mode: 'RecoveryModes' object has no attribute 'update_buttons'
