@@ -1,0 +1,45 @@
+{
+    "intro": [
+      "Hi there! I’m Algo, your guide to cracking deadlocks! We have {num_processes} workers ({processes}) and {num_resources} tools ({resources}). Current setup: {allocations}; {requests}. Our mission? Use DFS to find cycles in the resource graph that cause deadlocks—when workers wait forever! Let’s get started! 🔧",
+      "Welcome, learner! Algo here, ready to explore a factory with {num_processes} workers ({processes}) and {num_resources} tools ({resources}). Status: {allocations}; {requests}. We’ll use DFS to hunt for cycles—loops where workers are stuck waiting. Ready to dive in? 🚀"
+    ],
+    "start": [
+      "Starting with worker {node}! Time to check their workstation. 📋 DFS begins: We’re searching for cycles from {node} to spot any deadlock traps.",
+      "Kicking off at {node}’s desk! Let’s see what’s up. 🛠️ DFS note: {node} is our starting point for tracing resource requests."
+    ],
+    "visit": [
+      "Checking {node}’s workstation! It’s {context}. 🔍 DFS step: We add {node} to our stack, like a to-do list, to track our search path.",
+      "At {node}’s desk, where it’s {context}. 🖥️ DFS tip: Visiting {node} means marking it as ‘in progress’ on our stack to avoid loops.",
+      "Exploring {node}, which is {context}. 📊 DFS fact: {node} joins our stack, helping us remember where we’ve been in the graph."
+    ],
+    "check_edge": [
+      "{node} is {edge_type} {neighbor}. Let’s follow this lead! 🔗 DFS check: We’re tracing this edge to see if it leads to a cycle.",
+      "From {node}, checking {neighbor} via a {edge_type} link. 👀 DFS move: This edge shows {node}’s dependency—could it cause a loop?",
+      "{node}’s {edge_type} {neighbor}. Interesting! 🧐 DFS step: We’re examining this connection to track resource requests."
+    ],
+    "dive": [
+      "{neighbor} is new territory! Let’s explore it. 🌟 DFS action: Since {neighbor} isn’t visited, we add it to our stack and dive deeper.",
+      "Haven’t seen {neighbor} yet. Time to check it out! 🚪 DFS note: We’re visiting {neighbor} next, pushing it onto our stack.",
+      "{neighbor}’s unvisited. Let’s go! ⚡ DFS step: We add {neighbor} to our stack to continue our search for cycles."
+    ],
+    "cycle_found": [
+      "Alert! {neighbor} creates a loop: {cycle}! 🚨 DFS discovery: This cycle means a deadlock—workers are stuck waiting in a circle, like a traffic jam!",
+      "Whoa! {neighbor} forms a cycle: {cycle}. 🛑 DFS lesson: A cycle in the graph shows a deadlock, where no one can proceed. Trouble found!",
+      "Cycle detected at {neighbor}: {cycle}! 📢 DFS fact: This loop means a deadlock—everyone’s waiting for someone else’s tool!"
+    ],
+    "backtrack": [
+      "{node}’s a dead end. Backtracking! 🔙 DFS step: We pop {node} off the stack since we’ve checked all its connections.",
+      "No cycles at {node}. Time to back up! ⏪ DFS note: Removing {node} from our stack as we retrace our steps.",
+      "{node}’s clear. Let’s retreat! ↩️ DFS action: We’re done with {node}, so it’s off the stack, and we move back."
+    ],
+    "no_cycle": [
+      "Success! No cycles found—the factory’s running smoothly! 🏆 DFS wrap-up: Without cycles, there’s no deadlock, and workers can keep going.",
+      "Great news! No cycles in the graph. All clear! 🌟 DFS result: A cycle-free graph means no deadlocks—everyone’s happy!",
+      "Mission accomplished! No deadlock cycles detected. 🎉 DFS fact: The graph is safe, with no workers stuck waiting."
+    ],
+    "cycle_detected": [
+      "Deadlock alert! We found a cycle: {cycle}. 😱 DFS lesson: This loop traps workers, halting progress. Time to fix the resource jam!",
+      "Trouble spotted! A deadlock at {cycle}. 🚨 DFS insight: This cycle means workers are locked in a wait—let’s break it!",
+      "Deadlock confirmed: {cycle}! 📛 DFS note: This cycle shows a resource standoff. We need to free up these tools!"
+    ]
+  }
