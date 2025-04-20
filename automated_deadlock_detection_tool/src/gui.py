@@ -6,7 +6,7 @@ import time
 from deadlock_algo import DeadlockDetector
 from visualization.visualization import visualize_rag
 from visualization.cycle_visualization import CycleVisualization
-from visualization.sync_cycle_visualization import SyncCycleVisualization  # Import the new class
+from visualization.sync_cycle_visualization import SyncCycleVisualization
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -713,7 +713,7 @@ class DeadlockDetectionGUI:
             self.resources_held[target_process].append(resource)
             print(f"Allocation: {target_process} <- {resource}, History: {self.history_of_actions}")
             self.history_of_actions.append(("allocation", target_process, resource))
-            self.sound_manager.play_allocate_sound()
+            self.sound_manager.play_chime_sound()
             self.main_canvas.delete(self.resource_items[resource])
             self.center_items.remove(self.resource_items[resource])
             del self.resource_items[resource]
@@ -746,7 +746,7 @@ class DeadlockDetectionGUI:
             self.resources_wanted[process].append(target_resource)
             print(f"Request: {process} -> {target_resource}, History: {self.history_of_actions}")
             self.history_of_actions.append(("request", process, target_resource))
-            self.sound_manager.play_request_sound()
+            self.sound_manager.play_suspense_sound()
             self.main_canvas.delete(self.process_items[process])
             self.center_items.remove(self.process_items[process])
             del self.process_items[process]

@@ -14,10 +14,11 @@ import random
 
 class CycleVisualization:
     """Handles the simulation and narrative visualization of the cycle detection algorithm."""
-    def __init__(self, gui, window, mode):
+    def __init__(self, gui, window, mode, narrative_depth="basic"):
         self.gui = gui
         self.window = window
         self.mode = mode
+        self.narrative_depth = narrative_depth  # "basic" or "verbose"
         self.sound_manager = gui.sound_manager
         self.detector = DeadlockDetector(self.gui.resources_held, self.gui.resources_wanted, self.gui.total_resources)
         self.rag = self.detector.build_rag()
@@ -28,7 +29,7 @@ class CycleVisualization:
         self.is_playing = False
         self.play_thread = None
         self.window_valid = True
-        self.tic_channel = None  # Channel for looping tic.wav in simulation mode
+        self.tic_channel = None
 
         # Load narrative templates
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,14 +39,15 @@ class CycleVisualization:
         except FileNotFoundError:
             print("Error: narrative.json not found. Using fallback narrative.")
             self.narrative_templates = {
-                'intro': ["Fallback: Starting cycle detection..."],
-                'start': ["Visiting {node}..."],
-                'visit': ["Visiting {node}..."],
-                'check_edge': ["Checking edge from {node} to {neighbor}..."],
-                'cycle_found': ["Cycle found: {cycle}!"],
-                'backtrack': ["Backtracking from {node}..."],
-                'no_cycle': ["No cycles found!"],
-                'cycle_detected': ["Deadlock at {cycle}!"]
+                'intro': {'basic': ["Fallback: Starting cycle detection..."], 'verbose': ["Fallback: Starting cycle detection with details..."]},
+                'start': {'basic': ["Visiting {node}..."], 'verbose': ["Detailed visit to {node}..."]},
+                'visit': {'basic': ["Visiting {node}..."], 'verbose': ["Detailed visit to {node}..."]},
+                'check_edge': {'basic': ["Checking edge from {node} to {neighbor}..."], 'verbose': ["Detailed edge check from {node} to {neighbor}..."]},
+                'dive': {'basic': ["Diving to {neighbor}..."], 'verbose': ["Detailed dive to {neighbor}..."]},
+                'cycle_found': {'basic': ["Cycle found: {cycle}!"], 'verbose': ["Detailed cycle found: {cycle}!"]},
+                'backtrack': {'basic': ["Backtracking from {node}..."], 'verbose': ["Detailed backtrack from {node}..."]},
+                'no_cycle': {'basic': ["No cycles found!"], 'verbose': ["Detailed: No cycles found!"]},
+                'cycle_detected': {'basic': ["Deadlock at {cycle}!"], 'verbose': ["Detailed deadlock at {cycle}!"]}
             }
 
         # Bind window close event
@@ -60,7 +62,7 @@ class CycleVisualization:
     def _on_window_close(self):
         """Handle window close event."""
         self.is_playing = False
-        if self.tic_channel:  # Stop tic.wav if playing
+        if self.tic_channel:
             self.tic_channel.stop()
         self.window_valid = False
         self.window.destroy()
@@ -79,12 +81,11 @@ class CycleVisualization:
         narrative.extend(self.narrative)
 
         def dfs(node):
-            # Narrative for visiting a node
-            held = [r for r, ps in self.gui.resources_held.items() if node in ps]
-            wanted = [r for r, ps in self.gui.resources_wanted.items() if node in ps]
+            held = [r for p, rs in self.gui.resources_held.items() for r in rs if p == node]
+            wanted = self.gui.resources_wanted.get(node, [])
             context = f"clutching {', '.join(held) or 'nothing'}" if held else ""
             context += f" and eyeing {', '.join(wanted) or 'nothing'}" if wanted else ""
-            narrative.append(random.choice(self.narrative_templates['visit']).format(
+            narrative.append(random.choice(self.narrative_templates['visit'][self.narrative_depth]).format(
                 node=node, context=context))
             steps.append({
                 'node': node,
@@ -96,9 +97,8 @@ class CycleVisualization:
             visited.add(node)
             recursion_stack.add(node)
             for neighbor in graph.get(node, []):
-                # Narrative for checking an edge
                 edge_type = "hoarding" if node.startswith("R") else "begging for"
-                narrative.append(random.choice(self.narrative_templates['check_edge']).format(
+                narrative.append(random.choice(self.narrative_templates['check_edge'][self.narrative_depth]).format(
                     node=node, neighbor=neighbor, edge_type=edge_type))
                 steps.append({
                     'node': node,
@@ -109,8 +109,8 @@ class CycleVisualization:
                     'parent': parent.copy()
                 })
                 if neighbor not in visited:
-                    narrative.append(random.choice(self.narrative_templates['dive']).format(
-                        neighbor=neighbor))
+                    narrative.append(random.choice(self.narrative_templates['dive'][self.narrative_depth]).format(
+                        neighbor=neighbor, node=node))
                     parent[neighbor] = node
                     if dfs(neighbor):
                         return True
@@ -123,9 +123,8 @@ class CycleVisualization:
                     cycle.append(neighbor)
                     cycle.append(node)
                     self.cycle = cycle
-                    # Narrative for cycle found
                     cycle_str = " -> ".join(cycle)
-                    narrative.append(random.choice(self.narrative_templates['cycle_found']).format(
+                    narrative.append(random.choice(self.narrative_templates['cycle_found'][self.narrative_depth]).format(
                         neighbor=neighbor, cycle=cycle_str))
                     steps.append({
                         'node': node,
@@ -138,8 +137,7 @@ class CycleVisualization:
                     })
                     return True
             recursion_stack.remove(node)
-            # Narrative for backtracking
-            narrative.append(random.choice(self.narrative_templates['backtrack']).format(node=node))
+            narrative.append(random.choice(self.narrative_templates['backtrack'][self.narrative_depth]).format(node=node))
             steps.append({
                 'node': node,
                 'visited': visited.copy(),
@@ -151,14 +149,13 @@ class CycleVisualization:
 
         for node in graph:
             if node.startswith("P") and node not in visited:
-                narrative.append(random.choice(self.narrative_templates['start']).format(node=node))
+                narrative.append(random.choice(self.narrative_templates['start'][self.narrative_depth]).format(node=node))
                 if dfs(node):
                     break
-        # Final narrative
         if not self.cycle:
-            narrative.append(random.choice(self.narrative_templates['no_cycle']))
+            narrative.append(random.choice(self.narrative_templates['no_cycle'][self.narrative_depth]))
         else:
-            narrative.append(random.choice(self.narrative_templates['cycle_detected']).format(
+            narrative.append(random.choice(self.narrative_templates['cycle_detected'][self.narrative_depth]).format(
                 cycle=" -> ".join(self.cycle)))
 
         self.steps = steps
@@ -169,14 +166,14 @@ class CycleVisualization:
         num_processes = sum(1 for n in self.rag if n.startswith("P"))
         num_resources = sum(1 for n in self.rag if n.startswith("R"))
         allocations = []
-        for r, ps in self.gui.resources_held.items():
-            if ps:
-                allocations.append(f"{r} hoarded by {', '.join(ps)}")
+        for p, rs in self.gui.resources_held.items():
+            if rs:
+                allocations.append(f"{p} holds {', '.join(rs)}")
         requests = []
-        for r, ps in self.gui.resources_wanted.items():
-            if ps:
-                requests.append(f"{r} wanted by {', '.join(ps)}")
-        intro = random.choice(self.narrative_templates['intro']).format(
+        for p, rs in self.gui.resources_wanted.items():
+            if rs:
+                requests.append(f"{p} wants {', '.join(rs)}")
+        intro = random.choice(self.narrative_templates['intro'][self.narrative_depth]).format(
             num_processes=num_processes,
             processes=", ".join([n for n in self.rag if n.startswith("P")]),
             num_resources=num_resources,
@@ -204,7 +201,8 @@ class CycleVisualization:
                 self.fig_canvas.get_tk_widget().place(relx=0.5, rely=0.55, anchor="center")
             else:
                 title_label.place(relx=0.5, rely=0.05, anchor="center")
-                text_frame.place(relx=0.5, rely=0.55, anchor="center", relwidth=0.9, relheight=0.8)
+                narrative_frame.place(relx=0.5, rely=0.35, anchor="center", relwidth=0.9, relheight=0.35)
+                data_frame.place(relx=0.5, rely=0.75, anchor="center", relwidth=0.9, relheight=0.35)
                 control_frame.place(relx=0.5, rely=0.95, anchor="center")
 
         self.canvas.bind("<Configure>", on_resize)
@@ -228,16 +226,28 @@ class CycleVisualization:
             self.fig_canvas.get_tk_widget().place(relx=0.5, rely=0.55, anchor="center")
             self._draw_step()
         else:
-            title_label = tk.Label(self.canvas, text="Algo's Deadlock Quest",
+            title_label = tk.Label(self.canvas, text="Detective Algo's Deadlock Quest",
                                    font=("Helvetica", 20, "bold"), bg="#A3BFFA", fg="#2E3A59")
             title_label.place(relx=0.5, rely=0.05, anchor="center")
-            text_frame = tk.Frame(self.canvas, bg="#F3F4F6")
-            text_frame.place(relx=0.5, rely=0.55, anchor="center", relwidth=0.9, relheight=0.8)
-            self.text_area = tk.Text(text_frame, wrap=tk.WORD, font=("Arial", 12), bg="#F3F4F6", fg="#2E3A59")
-            scrollbar = tk.Scrollbar(text_frame, command=self.text_area.yview)
+            
+            # Narrative frame
+            narrative_frame = tk.Frame(self.canvas, bg="#F3F4F6")
+            narrative_frame.place(relx=0.5, rely=0.35, anchor="center", relwidth=0.9, relheight=0.35)
+            self.text_area = tk.Text(narrative_frame, wrap=tk.WORD, font=("Arial", 12), bg="#F3F4F6", fg="#2E3A59")
+            scrollbar = tk.Scrollbar(narrative_frame, command=self.text_area.yview)
             self.text_area.config(yscrollcommand=scrollbar.set)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
             self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
+            # Data frame for real-time data
+            data_frame = tk.Frame(self.canvas, bg="#E6F0FA")
+            data_frame.place(relx=0.5, rely=0.75, anchor="center", relwidth=0.9, relheight=0.35)
+            self.data_area = tk.Text(data_frame, wrap=tk.WORD, font=("Arial", 10), bg="#E6F0FA", fg="#2E3A59")
+            data_scrollbar = tk.Scrollbar(data_frame, command=self.data_area.yview)
+            self.data_area.config(yscrollcommand=data_scrollbar.set)
+            data_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            self.data_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
             control_frame = tk.Frame(self.canvas, bg="#A3BFFA")
             control_frame.place(relx=0.5, rely=0.95, anchor="center")
             prev_button = tk.Button(control_frame, text="⬅️ Previous", font=("Arial", 12),
@@ -249,6 +259,9 @@ class CycleVisualization:
             self.play_pause_button = tk.Button(control_frame, text="▶️ Play", font=("Arial", 12),
                                                command=self.toggle_play_pause, bg="#2196F3", fg="white")
             self.play_pause_button.pack(side=tk.LEFT, padx=5)
+            depth_button = tk.Button(control_frame, text="Toggle Verbose", font=("Arial", 12),
+                                     command=self.toggle_narrative_depth, bg="#9C27B0", fg="white")
+            depth_button.pack(side=tk.LEFT, padx=5)
             self._show_narrative()
 
     def _draw_step(self):
@@ -266,7 +279,6 @@ class CycleVisualization:
         self.ax.clear()
         self.ax.set_facecolor('#f8f9fa')
         self.ax.grid(True, linestyle='--', alpha=0.3)
-        # Updated title to be more informative
         if action == 'visit':
             title = f"Step {self.current_step + 1}: Visiting Node {node}"
         elif action == 'check_edge':
@@ -390,8 +402,8 @@ class CycleVisualization:
                     script_dir = os.path.dirname(os.path.abspath(__file__))
                     tic_sound_path = os.path.join(script_dir, "..", "..", "assets", "tic.wav")
                     tic_sound = pygame.mixer.Sound(tic_sound_path)
-                    self.tic_channel = pygame.mixer.Channel(0)  # Use channel 0 for tic.wav
-                    self.tic_channel.play(tic_sound, loops=-1)  # Loop indefinitely
+                    self.tic_channel = pygame.mixer.Channel(0)
+                    self.tic_channel.play(tic_sound, loops=-1)
                 except FileNotFoundError:
                     print(f"Error: 'assets/tic.wav' not found at {tic_sound_path}.")
                 except Exception as e:
@@ -405,7 +417,7 @@ class CycleVisualization:
 
             if self.window_valid and self.sound_manager.sound_enabled:
                 if self.tic_channel:
-                    self.tic_channel.stop()  # Stop tic.wav at the end
+                    self.tic_channel.stop()
                 try:
                     if self.cycle:
                         self.sound_manager.play_deadlock_sound()
@@ -414,21 +426,86 @@ class CycleVisualization:
                 except Exception as e:
                     print(f"Error playing end sound: {e}")
 
-        if not self.is_playing:  # Prevent multiple threads
+        if not self.is_playing:
             self.is_playing = True
             self.play_thread = threading.Thread(target=play, daemon=True)
             self.play_thread.start()
 
     def _show_narrative(self):
-        """Displays the narrative text up to the current step with progress indicator."""
-        if not self.window_valid or not self.text_area.winfo_exists():
+        """Displays the narrative text and real-time data up to the current step."""
+        if not self.window_valid or not self.text_area.winfo_exists() or not self.data_area.winfo_exists():
             return
         try:
+            # Update narrative text
             self.text_area.delete(1.0, tk.END)
-            self.text_area.insert(tk.END, f"Step {self.current_step + 1} of {len(self.narrative)}\n\n")
+            self.text_area.tag_configure("progress", foreground="#4CAF50")
+            self.text_area.tag_configure("action", foreground="#2196F3")
+            self.text_area.tag_configure("error", foreground="#FF0000")
+            self.text_area.tag_configure("success", foreground="#4CAF50")
+            self.text_area.tag_configure("tip", foreground="#9C27B0", font=("Arial", 12, "italic"))
+            self.text_area.insert(tk.END, f"Step {self.current_step + 1} of {len(self.narrative)}\n\n", "progress")
             for i, line in enumerate(self.narrative[:self.current_step + 1]):
-                self.text_area.insert(tk.END, f"{line}\n\n")
+                if "Tip:" in line or "Did you know?" in line:
+                    self.text_area.insert(tk.END, f"{line}\n\n", "tip")
+                elif any(keyword in line for keyword in ["Deadlock", "Cycle detected", "Trouble", "Alert"]):
+                    self.text_area.insert(tk.END, f"{line}\n\n", "error")
+                elif any(keyword in line for keyword in ["Success", "No cycles", "Mission accomplished", "Case solved"]):
+                    self.text_area.insert(tk.END, f"{line}\n\n", "success")
+                else:
+                    self.text_area.insert(tk.END, f"{line}\n\n", "action")
             self.text_area.see(tk.END)
+
+            # Update data display
+            self.data_area.delete(1.0, tk.END)
+            self.data_area.tag_configure("header", font=("Arial", 10, "bold"))
+            self.data_area.tag_configure("data", font=("Arial", 10))
+            
+            # Current Allocations
+            self.data_area.insert(tk.END, "Current Allocations:\n", "header")
+            allocations = [f"{p}: {', '.join(rs) or 'none'}" for p, rs in self.gui.resources_held.items()]
+            self.data_area.insert(tk.END, "\n".join(allocations) + "\n\n", "data")
+            
+            # Current Requests
+            self.data_area.insert(tk.END, "Current Requests:\n", "header")
+            requests = [f"{p}: {', '.join(rs) or 'none'}" for p, rs in self.gui.resources_wanted.items()]
+            self.data_area.insert(tk.END, "\n".join(requests) + "\n\n", "data")
+            
+            # Algorithm State
+            self.data_area.insert(tk.END, "Algorithm State:\n", "header")
+            if self.current_step < len(self.steps):
+                step = self.steps[self.current_step]
+                action = step['action']
+                node = step['node']
+                visited = step['visited']
+                recursion_stack = step['recursion_stack']
+                parent = step['parent']
+                neighbor = step.get('neighbor')
+                cycle = step.get('cycle')
+                
+                data_lines = [f"Action: {action.capitalize()}"]
+                data_lines.append(f"Current Node: {node}")
+                if neighbor:
+                    data_lines.append(f"Neighbor: {neighbor}")
+                data_lines.append(f"Visited Nodes: {', '.join(visited) or 'none'}")
+                data_lines.append(f"Recursion Stack: {', '.join(recursion_stack) or 'none'}")
+                if cycle:
+                    data_lines.append(f"Cycle Detected: {' -> '.join(cycle)}")
+                else:
+                    data_lines.append("Cycle Detected: None")
+                
+                # RAG Edges
+                edges = []
+                for u in self.rag:
+                    for v in self.rag[u]:
+                        edge_type = "Holds" if u.startswith("R") else "Requests"
+                        edges.append(f"{u} {edge_type} {v}")
+                data_lines.append(f"RAG Edges: {', '.join(edges) or 'none'}")
+                
+                self.data_area.insert(tk.END, "\n".join(data_lines) + "\n", "data")
+            else:
+                self.data_area.insert(tk.END, "No algorithm state available.\n", "data")
+            self.data_area.see(tk.END)
+            
         except tk.TclError as e:
             print(f"Tkinter error in _show_narrative: {e}")
             self.is_playing = False
@@ -477,6 +554,16 @@ class CycleVisualization:
                 self.play_pause_button.config(text="⏸️ Pause")
             self.play_thread = threading.Thread(target=self._auto_play_narrative, daemon=True)
             self.play_thread.start()
+
+    def toggle_narrative_depth(self):
+        """Toggles between basic and verbose narrative modes."""
+        self.narrative_depth = "verbose" if self.narrative_depth == "basic" else "basic"
+        # Rebuild narrative with new depth
+        self.current_step = 0
+        self.narrative = []
+        self._build_intro()
+        self._run_dfs_with_steps()
+        self._show_narrative()
 
     def _auto_play_narrative(self):
         """Automatically advances the narrative with a 3-second gap."""
